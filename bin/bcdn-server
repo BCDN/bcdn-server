@@ -1,0 +1,68 @@
+#!/usr/bin/env coffee
+
+path = require 'path'
+pkg = require '../package.json'
+fs = require 'fs'
+version = pkg.version
+BCDNServer = require('../lib').BCDNServer
+opts = require 'optimist'
+  .usage 'Usage: $0'
+  .options
+    timeout:
+      demand: false
+      alias: 't'
+      description: 'timeout (milliseconds)'
+      default: 5000
+    ip_limit:
+      demand: false
+      alias: 'i'
+      description: 'IP limit'
+      default: 5000
+    concurrent_limit:
+      demand: false
+      alias: 'c'
+      description: 'concurrent limit'
+      default: 5000
+    key:
+      demand: false
+      alias: 'k'
+      description: 'connection key'
+      default: 'bcdn'
+    sslkey:
+      demand: false
+      description: 'path to SSL key'
+    sslcert:
+      demand: false
+      description: 'path to SSL certificate'
+    port:
+      demand: true
+      alias: 'p'
+      description: 'port'
+    path:
+      demand: false
+      description: 'custom path'
+      default: '/'
+  .argv
+
+process.on 'uncaughtException', (err) ->
+  console.error "Error: #{err}"
+
+if opts.sslkey? or opts.sslcert?
+  unless opts.sslkey? and opts.sslcert?
+    console.error 'Warning: BCDNServer will not run because either' +
+      'the key or the certificate has not been provided.'
+    process.exit 1
+
+  opts.ssl =
+    key: fs.readFileSync path.resolve opts.sslkey
+    cert: fs.readFileSync path.resolve opts.sslcert
+
+  delete opts.sslkey
+  delete opts.sslcert
+
+userPath = opts.path || '/'
+server = new BCDNServer opts, (server) ->
+  {address, port} = server.address()
+
+  console.log "Started BCDNServer on #{address}, port: #{port}, " +
+    "path: #{userPath} (v. #{version})"
