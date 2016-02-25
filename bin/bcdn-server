@@ -23,11 +23,11 @@ opts = require 'optimist'
       alias: 'c'
       description: 'concurrent limit'
       default: 5000
-    key:
+    keys:
       demand: false
       alias: 'k'
       description: 'connection key'
-      default: 'bcdn'
+      default: ['bcdn']
     sslkey:
       demand: false
       description: 'path to SSL key'

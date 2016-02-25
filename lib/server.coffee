@@ -1,8 +1,13 @@
 WebSocketServer = require('ws').Server
 url = require 'url'
+logger = require 'debug'
+debug = logger 'server:debug'
+info = logger 'server:info'
 
 exports = module.exports = class
   constructor: (@express, @server, @options) ->
+    info 'server initializing...'
+
     if @mountpath = @express.mountpath instanceof Array
       throw new Error 'This app can only be mounted on a single path'
 
@@ -11,16 +16,24 @@ exports = module.exports = class
       keys: ['bcdn']
       ip_limit: 5000
       concurrent_limit: 5000
-    default_options extends @options
+    @options = default_options extends @options
+
+    @options.keys = [@options.keys] unless @options.keys instanceof Array
+
+    debug "timeout: #{@options.timeout}"
+    debug "keys: #{@options.keys}"
+    debug "ip_limit: #{@options.ip_limit}"
+    debug "concurrent_limit: #{@options.concurrent_limit}"
 
     # connected clients: clients[key][id] => connection
     # connection =
     #   token: ...
+    #   ip: ...
     #   id: ...
     #   socket: ...
     @clients = {}
 
-    # messages waiting for another peer: outstanding[key][id] => message
+    # messages waiting for another peer: outstanding[key][id] => message[]
     # message =
     #   type: message.type
     #   src: id
@@ -31,13 +44,15 @@ exports = module.exports = class
     # concurrent users for a IP: ips[ip] => count
     @ips = {}
 
+    info 'server initialized!'
+
   start: ->
+    info 'server starting...'
+
     @setCleanupIntervals()
     @initializeWSS()
 
-  stop: ->
-    # TODO: implement stop method
-    return
+    info 'server started!'
 
   initializeWSS: ->
     # start server for WebSocket
@@ -87,16 +102,19 @@ exports = module.exports = class
       socket.close()
       return
 
-    # TODO?
+    # process outstanding messages for this client
     @processOutstanding key, id
 
     # cleanup on socket close
     socket.on 'close', ->
-      # TODO: logging?
+      info "client #{key}:#{id} has closed the connection"
+
       # remove peers after socket closed
       @removePeer key, id if client.socket is socket
 
     socket.on 'message', (data) ->
+      debug "client #{key}:#{id} has sent the message #{JSON.stringify data}"
+
       try
         message = JSON.parse data
 
@@ -107,16 +125,15 @@ exports = module.exports = class
             dst: message.dst
             payload: message.payload
           @handleTransmission key, content
-        # else
-          # TODO: handle unrecognized type?
+        else
+          # TODO: handle other message type (mainly customized for the BCDN)
+          debug "client #{key}:#{id} has sent a message with " +
+            "invalid type: #{message.type}"
       catch e
-        # ...
-        # TODO: log error?
-        # TODO: throw or ignore?
-        throw e
+        debug "error on handle message from #{key}:#{id}"
 
-    # emit connect event TODO: add other info? like IP maybe?
-    @emit 'connect', id
+    # emit connect event
+    @emit 'connect', client
 
   checkKey: (key, ip, cb) ->
     if key in @options.keys
@@ -154,32 +171,36 @@ exports = module.exports = class
 
   setCleanupIntervals: ->
     # clean up IPs every 10 minutes
-    cleanupAction = ->
+    cleanupAction = =>
       for key, count of @ips
         delete @ips[key] if count is 0
     setInterval cleanupAction, 600000
 
     # clean up outstanding messages every 5 seconds
-    cleanupAction = ->
+    cleanupAction = =>
       @pruneOutstanding()
     setInterval cleanupAction, 5000
+
+    return
 
   processOutstanding: (key, id) ->
     offers = @outstanding[key][id]
     return unless offers?
 
-    # TODO: ??
+    # do the pending transmission
     @handleTransmission key, offer for offer in offers
 
+    # clear outstanding message for this client
     delete @outstanding[key][id]
 
   removePeer: (key, id) ->
     if @clients[key]? and @clients[key][id]?
-      ip = @clients[key][id].ip
-      @ips[ip]--
+      client = @clients[key][id]
+      @ips[client.ip]--
       delete @clients[key][id]
-      # emit disconnect event TODO: add other info? like IP maybe?
-      @emit 'disconnect', id
+
+      # emit disconnect event
+      @emit 'disconnect', client
 
   handleTransmission: (key, message) ->
     {type, src, dst} = message
@@ -189,7 +210,7 @@ exports = module.exports = class
 
     if destination?
       try
-        # TODO: logging?
+        debug "send message from #{src} to #{dst}: #{JSON.stringify message}"
         if destination.socket?
           destination.socket.send data
         else

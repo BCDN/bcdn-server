@@ -9,6 +9,7 @@ class ExpressBCDNServer
 
     app.on 'mount', ->
       app._bcdn = new Proto app, server, options
+      app._bcdn.start()
 
     return app
 
