@@ -5,7 +5,7 @@
     "url": "https://viz.pw/"
   },
   "bugs": {
-    "url": "https://git.vizv.com/viz/bcdn-server/issues"
+    "url": "https://git.vizv.com/bcdn/bcdn-server/issues"
   },
   "dependencies": {
     "coffee-script": "^1.10.0",
@@ -16,7 +16,7 @@
   "description": "Server for Browser-side CDN",
   "devDependencies": {},
   "directories": {},
-  "homepage": "https://git.vizv.com/viz/bcdn-server",
+  "homepage": "https://git.vizv.com/bcdn/bcdn-server",
   "keywords": [
     "bcdn",
     "webrtc",
@@ -40,7 +40,7 @@
   "optionalDependencies": {},
   "repository": {
     "type": "git",
-    "url": "ssh://git@git.vizv.com:2222/viz/bcdn-server.git"
+    "url": "ssh://git@git.vizv.com:2222/bcdn/bcdn-server.git"
   },
   "scripts": {
     "start": "coffee bin/bcdn-server --port ${PORT:=9001}"
