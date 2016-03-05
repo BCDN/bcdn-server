@@ -1,10 +1,12 @@
 WebSocketServer = require('ws').Server
+Serializable = require './Serializable'
 url = require 'url'
 logger = require 'debug'
 debug = logger 'server:debug'
 info = logger 'server:info'
 
-exports = module.exports = class
+# TODO: let it extends WebSocketServer?
+exports = module.exports = class TrackerServer extends Serializable
   constructor: (@express, @server, @options) ->
     info 'server initializing...'
 
@@ -57,40 +59,65 @@ exports = module.exports = class
   initializeWSS: ->
     # start server for WebSocket
     @wss = new WebSocketServer path: @mountpath, server: @server
-    @wss.on 'connection', (socket) ->
-      {id, token, key} = url.parse(socket.upgradeReq.url, true).query
+    @wss.on 'connection', (socket) =>
+      {key} = url.parse(socket.upgradeReq.url, true).query
       ip = socket.upgradeReq.socket.remoteAddress
 
-      # generate ID if not provided
-      id ?= @generateId()
-
-      # check parameters
-      unless token? and key?
-        payload = msg: 'No token, or key supplied to websocket server'
+      # check key is provided # FIXME: move to checkKey()
+      unless key?
+        payload = msg: 'key is required for connection'
         socket.send JSON.stringify type: 'ERROR', payload: payload
         socket.close()
         return
 
+      debug "new connection from #{ip}, key: #{key}"
+
       # check key and limits
-      unless @clients[key]? and @clients[key][id]?
-        checkKey key, ip, (err) ->
-          if err?
-            # close socket with error
-            payload = msg: err
-            socket.send JSON.stringify type: 'ERROR', payload: payload
-            socket.close()
-            return
-          else
-            # register new client with token provided
-            if @clients[key][id]?
-              @clients[key][id] = token: token, ip: ip
-              @ips[ip]++
-              socket.send JSON.stringify type: 'OPEN'
+      # unless @clients[key]? and @clients[key][id]? # FIXME: check ID
+      #                                                       later when JOIN
+          # FIXME: handle these when join
+          # else
+          #   # register new client with token provided
+          #   if @clients[key][id]?
+          #     @clients[key][id] = token: token, ip: ip
+          #     @ips[ip]++
+          #     socket.send JSON.stringify type: 'OPEN'
+      @checkKey key, ip, (err) ->
+        if err?
+          # close socket with error
+          payload = msg: err
+          # FIXME: change to close(code, message)
+          socket.send JSON.stringify type: 'ERROR', payload: payload
+          socket.close()
+          return
 
       # configure incoming connection if no error
-      @configureWS socket, key, id, token
+      # @configureWS socket, key, id, token # FIXME: id is no longer
+      #                                              required until JOIN
+      socket.on 'message', (data) =>
+        content = @deserialize data
 
-  configureWS: (socket, key, id, token) ->
+        # ignore malformed messages
+        return unless content.type?
+
+        # TODO emit information
+        socket.emit content.type, content.payload
+
+      # handle JOIN event
+      socket.on 'JOIN', (payload) =>
+        {peerId, token} = payload
+
+        # generate ID if not provided
+        peerId ?= @generateId()
+
+        # TODO: handle join
+        info "peer join!"
+        content = @serialize type: 'JOINED', payload: peerId: @generateId()
+        socket.send content
+
+      # TODO: close connection in {timeout seconds} seconds if no JOIN request
+
+  handleJoin: (socket, key, id, token) ->
     client = @clients[key][id]
 
     # restore connection
@@ -144,7 +171,7 @@ exports = module.exports = class
 
       # check concurrent limit
       if Object.keys(@clients[key]).length >= @options.concurrent_limit
-        cb 'Server has reached its concurrent user limit'
+        cb 'server has reached its concurrent user limit'
         return
       if @ips[ip] >= @options.ip_limit
         cb "#{ip} has reached its concurrent user limit"
@@ -153,7 +180,7 @@ exports = module.exports = class
       # key is valid
       cb null
     else
-      cb 'Invalid key provided'
+      cb 'invalid key provided'
 
   pruneOutstanding: ->
     for key, dsts of @outstanding
@@ -237,3 +264,4 @@ exports = module.exports = class
         # Unavailable destination specified with message LEAVE or EXPIRE
         # Ignore
         return
+  generateId: -> "P#{('0000000000' + Math.random().toString(10)).substr(-10)}"

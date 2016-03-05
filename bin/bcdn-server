@@ -34,6 +34,11 @@ opts = require 'optimist'
     sslcert:
       demand: false
       description: 'path to SSL certificate'
+    host:
+      demand: false
+      alias: 'h'
+      description: 'host'
+      default: '127.0.0.1'
     port:
       demand: true
       alias: 'p'
@@ -44,8 +49,9 @@ opts = require 'optimist'
       default: '/'
   .argv
 
-process.on 'uncaughtException', (err) ->
-  console.error "Error: #{err}"
+unless process.env.DEBUG
+  process.on 'uncaughtException', (err) ->
+    console.error "Error: #{err}"
 
 if opts.sslkey? or opts.sslcert?
   unless opts.sslkey? and opts.sslcert?
