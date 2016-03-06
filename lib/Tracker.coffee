@@ -35,14 +35,6 @@ exports = module.exports = class TrackerServer extends Serializable
     #   socket: ...
     @peers = {}
 
-    # messages waiting for another peer: outstanding[key][id] => message[]
-    # message =
-    #   type: message.type
-    #   src: id
-    #   dst: message.dst
-    #   payload: message.payload
-    @outstanding = {}
-
     # concurrent users for a IP: ips[ip] => count
     @ips = {}
 
@@ -149,15 +141,10 @@ exports = module.exports = class TrackerServer extends Serializable
 
     # TODO: push update to peer
 
-    # FIXME: protocol need update
-    # process outstanding messages for this peer
-    # @processOutstanding key, id
-
   checkKey: (key, ip, cb) ->
     if key in @options.keys
       # initialize variables
       @peers[key] ?= {}
-      @outstanding[key] ?= {}
       @ips[ip] ?= 0
 
       # check concurrent limit
@@ -173,43 +160,12 @@ exports = module.exports = class TrackerServer extends Serializable
     else
       cb 'invalid key provided'
 
-  pruneOutstanding: ->
-    for key, dsts of @outstanding
-      for dst, offers of dsts
-        seen = {}
-        for message of offers
-          unless seen[message.src]?
-            content =
-              type: 'EXPIRE'
-              src: message.dst
-              dst: message.src
-            @handleTransmission key, content
-            seen[message.src] = true
-      @outstanding[key] = {}
-
   setCleanupIntervals: ->
     # clean up IPs every 10 minutes
     cleanupAction = =>
       for key, count of @ips
         delete @ips[key] if count is 0
     setInterval cleanupAction, 600000
-
-    # clean up outstanding messages every 5 seconds
-    cleanupAction = =>
-      @pruneOutstanding()
-    setInterval cleanupAction, 5000
-
-    return
-
-  processOutstanding: (key, id) ->
-    offers = @outstanding[key][id]
-    return unless offers?
-
-    # do the pending transmission
-    @handleTransmission key, offer for offer in offers
-
-    # clear outstanding message for this peer
-    delete @outstanding[key][id]
 
   removePeer: (key, id) ->
     peer = @peers[key][id]
@@ -220,39 +176,4 @@ exports = module.exports = class TrackerServer extends Serializable
       debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip]}"
       delete @peers[key][id]
 
-  handleTransmission: (key, message) ->
-    {type, src, dst} = message
-    data = JSON.stringify message
-
-    destination = @peers[key][dst]
-
-    if destination?
-      try
-        debug "send message from #{src} to #{dst}: #{JSON.stringify message}"
-        if destination.socket?
-          destination.socket.send data
-        else
-          throw 'Peer dead'
-      catch e
-        # This happens when a peer disconnects without closing connections and
-        # the associated WebSocket has not closed.
-        # Tell other side to stop trying.
-        @removePeer key, dst
-        content =
-          type: 'LEAVE'
-          src: dst
-          dst: src
-        @handleTransmission key, content
-    else
-      # Wait for this peer to connect for important messages.
-      if type isnt 'LEAVE' and type isnt 'EXPIRE' and dst?
-        # save the message
-        @outstanding[key][dst] ?= []
-        @outstanding[key][dst].push message
-      else if type is 'LEAVE' and not dst?
-        @removePeer key, src
-      else
-        # Unavailable destination specified with message LEAVE or EXPIRE
-        # Ignore
-        return
   generateId: -> "P#{('0000000000' + Math.random().toString(10)).substr(-10)}"
