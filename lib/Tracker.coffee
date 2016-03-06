@@ -65,16 +65,16 @@ exports = module.exports = class TrackerServer extends Serializable
         @disconnectWithError socket, errorMsg if errorMsg?
 
       socket.on 'message', (data) =>
-        debug "peer has sent a message (data=#{data})"
-
         try
           content = @deserialize data
         catch e
           debug "error to deserialize: #{e}, (data=#{data})"
           return
 
-        # ignore malformed messages
-        return unless content.type?
+        # sanitize malformed messages
+        return unless content.type in ['JOIN']
+
+        debug "peer has sent a message (data=#{data})"
 
         # emit information
         socket.emit content.type, content.payload
