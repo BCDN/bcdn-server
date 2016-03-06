@@ -2,13 +2,13 @@ WebSocketServer = require('ws').Server
 Serializable = require './Serializable'
 url = require 'url'
 logger = require 'debug'
-debug = logger 'server:debug'
-info = logger 'server:info'
+debug = logger 'tracker:debug'
+info = logger 'tracker:info'
 
 # TODO: let it extends WebSocketServer?
 exports = module.exports = class TrackerServer extends Serializable
   constructor: (@express, @server, @options) ->
-    info 'server initializing...'
+    info 'tracker initializing...'
 
     if @mountpath = @express.mountpath instanceof Array
       throw new Error 'This app can only be mounted on a single path'
@@ -27,13 +27,13 @@ exports = module.exports = class TrackerServer extends Serializable
     debug "ip_limit: #{@options.ip_limit}"
     debug "concurrent_limit: #{@options.concurrent_limit}"
 
-    # connected clients: clients[key][id] => connection
+    # connected peers: peers[key][id] => connection
     # connection =
     #   token: ...
     #   ip: ...
     #   id: ...
     #   socket: ...
-    @clients = {}
+    @peers = {}
 
     # messages waiting for another peer: outstanding[key][id] => message[]
     # message =
@@ -46,132 +46,123 @@ exports = module.exports = class TrackerServer extends Serializable
     # concurrent users for a IP: ips[ip] => count
     @ips = {}
 
-    info 'server initialized!'
+    info 'tracker initialized'
 
   start: ->
-    info 'server starting...'
+    info 'tracker starting...'
 
     @setCleanupIntervals()
-    @initializeWSS()
+    @startWebSocketServer()
 
-    info 'server started!'
+    info 'tracker started'
 
-  initializeWSS: ->
-    # start server for WebSocket
+  startWebSocketServer: ->
     @wss = new WebSocketServer path: @mountpath, server: @server
     @wss.on 'connection', (socket) =>
       {key} = url.parse(socket.upgradeReq.url, true).query
-      ip = socket.upgradeReq.socket.remoteAddress
+      socket.ip = socket.upgradeReq.socket.remoteAddress
 
       # check key is provided # FIXME: move to checkKey()
-      unless key?
-        payload = msg: 'key is required for connection'
-        socket.send JSON.stringify type: 'ERROR', payload: payload
-        socket.close()
-        return
+      @disconnectWithError socket, 'key is required for connection' unless key?
 
-      debug "new connection from #{ip}, key: #{key}"
+      info "new connection (ip=#{socket.ip}, key=#{key})"
 
       # check key and limits
-      # unless @clients[key]? and @clients[key][id]? # FIXME: check ID
-      #                                                       later when JOIN
-          # FIXME: handle these when join
-          # else
-          #   # register new client with token provided
-          #   if @clients[key][id]?
-          #     @clients[key][id] = token: token, ip: ip
-          #     @ips[ip]++
-          #     socket.send JSON.stringify type: 'OPEN'
-      @checkKey key, ip, (err) ->
-        if err?
-          # close socket with error
-          payload = msg: err
-          # FIXME: change to close(code, message)
-          socket.send JSON.stringify type: 'ERROR', payload: payload
-          socket.close()
-          return
+      @checkKey key, socket.ip, (errorMsg) ->
+        # close socket with error
+        @disconnectWithError socket, errorMsg if errorMsg?
 
-      # configure incoming connection if no error
-      # @configureWS socket, key, id, token # FIXME: id is no longer
-      #                                              required until JOIN
       socket.on 'message', (data) =>
-        content = @deserialize data
+        debug "peer has sent a message (data=#{data})"
+
+        try
+          content = @deserialize data
+        catch e
+          debug "error to deserialize: #{e}, (data=#{data})"
+          return
 
         # ignore malformed messages
         return unless content.type?
 
-        # TODO emit information
+        # emit information
         socket.emit content.type, content.payload
+
+      # close connection in {timeout} seconds if no JOIN request
+      joiningTimer = setInterval =>
+        @disconnectWithError socket, 'timeout for joining the network'
+      , @options.timeout
+
+      # close for tracker selection ping
+      socket.on 'ping', (data) =>
+        debug "got ping (ip=#{socket.ip}, data=#{data})"
+
+        if data is 'HELLO'
+          socket.close()
 
       # handle JOIN event
       socket.on 'JOIN', (payload) =>
-        {peerId, token} = payload
+        {id, token} = payload
+
+        # clear the joining timer
+        clearInterval joiningTimer
 
         # generate ID if not provided
-        peerId ?= @generateId()
+        id ?= @generateId()
 
-        # TODO: handle join
-        info "peer join!"
-        content = @serialize type: 'JOINED', payload: peerId: @generateId()
-        socket.send content
+        # handle join
+        @handleJoin socket, key, id, token
 
-      # TODO: close connection in {timeout seconds} seconds if no JOIN request
+  disconnectWithError: (socket, msg) ->
+    # 1002 - CLOSE_PROTOCOL_ERROR for WebSocket
+    content = @serialize type: 'ERROR', payload: msg: msg
+    socket.close 1002, content
 
   handleJoin: (socket, key, id, token) ->
-    client = @clients[key][id]
+    info "peer joining (ip=#{socket.ip}, " +
+         "key=#{key}, id=#{id}, token=#{token})..."
 
-    # restore connection
-    if token is clients.token
-      client.socket = socket
+    # register peer if haven't been registered yet
+    unless @peers[key][id]?
+      debug "register peer (ip=#{socket.ip}, key=#{key}, id=#{id})"
+      @peers[key][id] = token: token, ip: socket.ip
+      @ips[socket.ip]++
+      debug "number of connection for (ip=#{socket.ip}): #{@ips[socket.ip]}"
+
+    # get record for the peer
+    peer = @peers[key][id]
+
+    # store connection
+    if token is peer.token
+      peer.socket = socket
     else
-      payload = msg: 'ID is taken'
-      socket.send JSON.stringify type: 'ID-TAKEN', payload: payload
-      socket.close()
-      return
+      @disconnectWithError socket, 'ID is taken'
 
-    # process outstanding messages for this client
-    @processOutstanding key, id
-
-    # cleanup on socket close
-    socket.on 'close', ->
-      info "client #{key}:#{id} has closed the connection"
+    peer.socket.on 'close', =>
+      info "peer has left (key=#{key}, id=#{id})"
 
       # remove peers after socket closed
-      @removePeer key, id if client.socket is socket
+      @removePeer key, id if peer.socket is socket
 
-    socket.on 'message', (data) ->
-      debug "client #{key}:#{id} has sent the message #{JSON.stringify data}"
+    # notify peer has joined the network
+    content = @serialize type: 'JOINED', payload: id: id
+    peer.socket.send content
 
-      try
-        message = JSON.parse data
+    # TODO: push update to peer
 
-        if message.type in ['LEAVE', 'CANDIDATE', 'OFFER', 'ANSWER']
-          content =
-            type: message.type
-            src: id
-            dst: message.dst
-            payload: message.payload
-          @handleTransmission key, content
-        else
-          # TODO: handle other message type (mainly customized for the BCDN)
-          debug "client #{key}:#{id} has sent a message with " +
-            "invalid type: #{message.type}"
-      catch e
-        debug "error on handle message from #{key}:#{id}"
-
-    # emit connect event
-    @emit 'connect', client
+    # FIXME: protocol need update
+    # process outstanding messages for this peer
+    # @processOutstanding key, id
 
   checkKey: (key, ip, cb) ->
     if key in @options.keys
       # initialize variables
-      @clients[key] ?= {}
+      @peers[key] ?= {}
       @outstanding[key] ?= {}
       @ips[ip] ?= 0
 
       # check concurrent limit
-      if Object.keys(@clients[key]).length >= @options.concurrent_limit
-        cb 'server has reached its concurrent user limit'
+      if Object.keys(@peers[key]).length >= @options.concurrent_limit
+        cb 'tracker has reached its concurrent user limit'
         return
       if @ips[ip] >= @options.ip_limit
         cb "#{ip} has reached its concurrent user limit"
@@ -217,23 +208,23 @@ exports = module.exports = class TrackerServer extends Serializable
     # do the pending transmission
     @handleTransmission key, offer for offer in offers
 
-    # clear outstanding message for this client
+    # clear outstanding message for this peer
     delete @outstanding[key][id]
 
   removePeer: (key, id) ->
-    if @clients[key]? and @clients[key][id]?
-      client = @clients[key][id]
-      @ips[client.ip]--
-      delete @clients[key][id]
+    peer = @peers[key][id]
 
-      # emit disconnect event
-      @emit 'disconnect', client
+    if peer?
+      debug "remove peer (ip=#{peer.ip}, key=#{key}, id=#{id})"
+      @ips[peer.ip]--
+      debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip]}"
+      delete @peers[key][id]
 
   handleTransmission: (key, message) ->
     {type, src, dst} = message
     data = JSON.stringify message
 
-    destination = @clients[key][dst]
+    destination = @peers[key][dst]
 
     if destination?
       try
@@ -253,7 +244,7 @@ exports = module.exports = class TrackerServer extends Serializable
           dst: src
         @handleTransmission key, content
     else
-      # Wait for this client to connect for important messages.
+      # Wait for this peer to connect for important messages.
       if type isnt 'LEAVE' and type isnt 'EXPIRE' and dst?
         # save the message
         @outstanding[key][dst] ?= []

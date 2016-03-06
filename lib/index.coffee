@@ -1,5 +1,5 @@
 express = require 'express'
-Proto = require './server'
+Tracker = require './Tracker'
 http = require 'http'
 https = require 'https'
 
@@ -8,8 +8,8 @@ class ExpressBCDNServer
     app = express()
 
     app.on 'mount', ->
-      app._bcdn = new Proto app, server, options
-      app._bcdn.start()
+      app._bcdnTracker = new Tracker app, server, options
+      app._bcdnTracker.start()
 
     return app
 
