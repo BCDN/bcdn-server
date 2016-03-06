@@ -1,5 +1,5 @@
 WebSocketServer = require('ws').Server
-Serializable = require './Serializable'
+Serializable = require('bcdn').Serializable
 url = require 'url'
 logger = require 'debug'
 debug = logger 'tracker:debug'

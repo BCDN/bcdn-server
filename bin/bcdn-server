@@ -4,7 +4,7 @@ path = require 'path'
 pkg = require '../package.json'
 fs = require 'fs'
 version = pkg.version
-BCDNServer = require('../lib').BCDNServer
+BCDNServer = require('..').BCDNServer
 opts = require 'optimist'
   .usage 'Usage: $0'
   .options

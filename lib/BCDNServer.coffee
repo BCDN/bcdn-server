@@ -1,19 +1,9 @@
 express = require 'express'
-Tracker = require './Tracker'
+ExpressBCDNServer = require './ExpressBCDNServer'
 http = require 'http'
 https = require 'https'
 
-class ExpressBCDNServer
-  constructor: (server, options) ->
-    app = express()
-
-    app.on 'mount', ->
-      app._bcdnTracker = new Tracker app, server, options
-      app._bcdnTracker.start()
-
-    return app
-
-class BCDNServer
+exports = module.exports = class BCDNServer
   constructor: (options, callbacks) ->
     app = express()
 
@@ -38,6 +28,3 @@ class BCDNServer
 
     return bcdn
 
-exports = module.exports =
-  BCDNServer: BCDNServer
-  ExpressBCDNServer: ExpressBCDNServer
