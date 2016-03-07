@@ -1,3 +1,3 @@
 exports = module.exports =
-  BCDNServer: require './lib/BCDNServer'
+  StandaloneBCDNServer: require './lib/StandaloneBCDNServer'
   ExpressBCDNServer: require './lib/ExpressBCDNServer'

@@ -1,9 +1,10 @@
 express = require 'express'
-ExpressBCDNServer = require './ExpressBCDNServer'
 http = require 'http'
 https = require 'https'
 
-exports = module.exports = class BCDNServer
+ExpressBCDNServer = require './ExpressBCDNServer'
+
+exports = module.exports = class StandaloneBCDNServer
   constructor: (options, callbacks) ->
     app = express()
 

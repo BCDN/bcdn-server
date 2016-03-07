@@ -4,7 +4,7 @@ path = require 'path'
 pkg = require '../package.json'
 fs = require 'fs'
 version = pkg.version
-BCDNServer = require('..').BCDNServer
+StandaloneBCDNServer = require('..').StandaloneBCDNServer
 opts = require 'optimist'
   .usage 'Usage: $0'
   .options
@@ -67,7 +67,7 @@ if opts.sslkey? or opts.sslcert?
   delete opts.sslcert
 
 userPath = opts.path || '/'
-server = new BCDNServer opts, (server) ->
+server = new StandaloneBCDNServer opts, (server) ->
   {address, port} = server.address()
 
   console.log "Started BCDNServer on #{address}, port: #{port}, " +
