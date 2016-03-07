@@ -45,7 +45,8 @@
     "url": "ssh://git@git.vizv.com:2222/bcdn/bcdn-server.git"
   },
   "scripts": {
-    "start": "coffee bin/bcdn-server --port ${PORT:=9001}"
+    "start": "coffee bin/bcdn-server --port ${PORT:=9001}",
+    "generate": "bin/generate"
   },
   "version": "0.1.0"
 }

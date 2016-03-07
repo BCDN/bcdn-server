@@ -1,0 +1,94 @@
+#!/bin/bash
+
+set -e
+
+# set default key
+[ -z "$1" ] && KEY=bcdn
+
+# setup
+TIMESTAMPS="$(date +%s)"
+DIR_ROOT="$(pwd)"
+DIR_FILES="${DIR_ROOT}/files/$KEY"
+DIR_DATA="${DIR_ROOT}/data/$KEY"
+DIR_TMPDATA="${DIR_DATA}-tmp_$TIMESTAMPS"
+HASH_TOOL=sha256sum
+CHUNK_SIZE=256K
+
+# cleanup on error or exit
+cleanup() {
+    rm -rf "$DIR_TMPDATA"
+}
+trap cleanup INT TERM ERR EXIT
+
+# helper function for dependency check
+check() {
+    which "$1" 2>&1 >/dev/null \
+        || { echo "Error: program \"$1\" not found!" >/dev/stderr; exit 1; }
+}
+
+# check dependencies
+check "$HASH_TOOL"
+check split
+check find
+
+# prepare directories
+mkdir -p "$DIR_FILES"
+mkdir -p "$DIR_TMPDATA"
+mkdir -p "$DIR_TMPDATA/indexes"
+mkdir -p "$DIR_TMPDATA/pieces"
+
+# generate data directory
+echo "generating..."
+cd "$DIR_FILES"
+N_FILES="$(find -type f | wc -l)"
+find -type f | while read FILE; do
+    echo # spacer
+    FILE="$(echo "$FILE" | cut -c 3-)"
+    I_FILES=$((I_FILES+1))
+
+    # hash and build entry
+    echo "[${I_FILES}/${N_FILES}] ${FILE}: hashing..."
+    HASH="$("$HASH_TOOL" "$FILE" | cut -sd' ' -f-1)"
+    ENTRY="$(stat -c'%n %s' "$FILE") $HASH"
+
+    # add to contents
+    echo "[${I_FILES}/${N_FILES}] ${FILE}: add to contents"
+    echo "/$ENTRY" >> "${DIR_TMPDATA}/contents"
+
+    # check duplicate
+    [ -f "${DIR_TMPDATA}/indexes/${HASH}" ] && continue
+
+    # split file
+    mkdir "${DIR_TMPDATA}/${HASH}"
+    cd "${DIR_TMPDATA}/${HASH}"
+    echo "[${I_FILES}/${N_FILES}] ${FILE}: splitting..."
+    split -b "$CHUNK_SIZE" "${DIR_FILES}/${FILE}"
+
+    # process split files
+    N_PIECES="$(ls | wc -l)"
+    ls | sort | while read PIECE; do
+        I_PIECES=$((I_PIECES+1))
+
+        PC_HASH="$("$HASH_TOOL" "$PIECE" | cut -sd' ' -f-1)"
+        echo "[${I_FILES}/${N_FILES}-${I_PIECES}/${N_PIECES}]" \
+             "processing ${PC_HASH}..."
+        echo "$PC_HASH" >> "${DIR_TMPDATA}/indexes/${HASH}"
+
+        DIR_DIST="$DIR_TMPDATA/pieces/$(echo "$PC_HASH" | cut -c-2)"
+        mkdir -p "$DIR_DIST"
+
+        mv "$PIECE" "${DIR_DIST}/${PC_HASH}"
+    done
+
+    # remove temporary directory for storing pieces
+    cd "$DIR_FILES"
+    rm -rf "${DIR_TMPDATA}/${HASH}"
+done
+
+# update data directory
+rm -rf "$DIR_DATA"
+mv "$DIR_TMPDATA" "$DIR_DATA"
+
+# TODO: notify server for the update
+
+echo 'Done!'

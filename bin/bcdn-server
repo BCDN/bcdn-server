@@ -47,6 +47,10 @@ opts = require 'optimist'
       demand: false
       description: 'custom path'
       default: '/'
+    data:
+      demand: false
+      description: 'data path'
+      default: './data'
   .argv
 
 unless process.env.DEBUG

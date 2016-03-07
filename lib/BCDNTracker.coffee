@@ -27,6 +27,8 @@ exports = module.exports = class BCDNTracker
       keys: ['bcdn']
       ip_limit: 5000
       concurrent_limit: 5000
+      data: './data'
+
     @options = default_options extends @options
 
     @options.keys = [@options.keys] unless @options.keys instanceof Array
