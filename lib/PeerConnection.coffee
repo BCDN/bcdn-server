@@ -25,7 +25,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
           # sanitize malformed messages
           return unless content.type in []
 
-          @debug "peer has sent a message (data=#{data})"
+          @debug "peer has sent a message (id=#{@id}, data=#{data})"
 
           # emit information
           @emit content.type, content.payload

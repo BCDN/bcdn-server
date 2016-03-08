@@ -9,14 +9,14 @@ exports = module.exports = class PeerManager extends WebSocketServer
   debug: logger 'PeerManager:debug'
   info: logger 'PeerManager:info'
 
-  constructor: (server, mountpath, @opts) ->
-    {keys} = @opts
-    @info "peer manager starting (keys=[#{keys}])..."
+  constructor: (server, mountpath, opts) ->
+    {@keys, @timeout, @concurrent_limit, @ip_limit, tracker_id} = opts
+    @info "peer manager starting (mountpath=#{mountpath})..."
 
     # initialize variables
     # connection for peers: peerConnections[key][id] => PeerConnection
     @peerConnections = {}
-    @peerConnections[key] ?= {} for key in keys
+    @peerConnections[key] ?= {} for key in @keys
     # concurrent users for a IP: ips[ip] => count, clean up every 10 minutes
     @ips = {}
     setInterval =>
@@ -35,7 +35,8 @@ exports = module.exports = class PeerManager extends WebSocketServer
       # initialize peer connection
       generateId = ->
         "P#{('0000000000' + Math.random().toString(10)).substr(-10)}"
-      peerConn = new PeerConnection key, id || generateId(), token, socket
+      peerId = "#{opts.tracker_id}-#{id || generateId()}"
+      peerConn = new PeerConnection key, peerId, token, socket
 
 
       # check key and limits
@@ -54,7 +55,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
       # accept different types of connection
       switch connType
         when 'peer'
-          @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id}..."
+          @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id})..."
 
           # register peer
           @registerPeerConnection peerConn, =>
@@ -66,22 +67,22 @@ exports = module.exports = class PeerManager extends WebSocketServer
 
           setInterval =>
             peerConn.disconnectWithError 'timeout for joining the network'
-          , @opts.timeout
+          , @timeout
 
 
 
   checkKeyAndLimits: (key, ip, cb) ->
     return cb 'key is required for connection' unless key?
 
-    if key in @opts.keys
+    if key in @keys
       # initialize variables
       @ips[ip] ?= 0
 
       # check concurrent limit
-      if Object.keys(@peerConnections[key]).length >= @opts.concurrent_limit
+      if Object.keys(@peerConnections[key]).length >= @concurrent_limit
         cb 'tracker has reached its concurrent user limit'
         return
-      if @ips[ip] >= @opts.ip_limit
+      if @ips[ip] >= @ip_limit
         cb "#{ip} has reached its concurrent user limit"
         return
 

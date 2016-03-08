@@ -47,8 +47,21 @@ opts = require 'optimist'
       demand: false
       description: 'custom path'
       default: '/'
+    tracker_id:
+      demand: false
+      description: 'tracker id'
+      default: null
+    trackers:
+      demand: false
+      description: 'other trackers (do NOT include localhost)'
+      default: []
+    secret:
+      demand: true
+      alias: 's'
+      description: 'secret used for establish tracker communication'
     data:
       demand: false
+      alias: 'd'
       description: 'data path'
       default: './data'
   .argv
