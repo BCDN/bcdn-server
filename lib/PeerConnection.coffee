@@ -44,6 +44,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
   send: (msg) ->
     content = @serialize msg
     @socket.send content
+    @debug "message sent to peer (key=#{@key}, id=#{@id}): #{content}"
 
   disconnectWithError: (msg) =>
     # 1002 - CLOSE_PROTOCOL_ERROR for WebSocket

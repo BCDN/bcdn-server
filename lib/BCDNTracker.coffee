@@ -1,10 +1,11 @@
+url = require 'url'
 WebSocketServer = require('ws').Server
 
 Contents = require('bcdn').Contents
 Serializable = require('bcdn').Serializable
 PeerConnection = require './PeerConnection'
+ContentsFile = require './ContentsFile'
 
-url = require 'url'
 logger = require 'debug'
 
 # TODO: let it extends WebSocketServer?
@@ -42,18 +43,22 @@ exports = module.exports = class BCDNTracker
     # initialize variables
     # connection for peers: peers[key][id] => PeerConnection
     @peers = {}
+    @peers[key] ?= {} for key in @options.keys
 
     # concurrent users for a IP: ips[ip] => count
     @ips = {}
 
+    # contents for a namespace: contents[key] => contents
+    @contents = {}
+    @contents[key] = new ContentsFile() for key in @options.keys
 
     @info "tracker initialized"
 
 
     # start up the tracker
-    @startWebSocketServer()
+    @updateAllContents()
     @setCleanupIntervals()
-    @updateContents()
+    @startWebSocketServer()
 
     @info "tracker started"
 
@@ -90,17 +95,15 @@ exports = module.exports = class BCDNTracker
       # accept different types of connection
       switch connType
         when 'peer'
-          @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id}, " +
-               "token=#{peerConn.token}), ip=#{peerConn.ip}..."
+          @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id}..."
 
           # register peer
           @registerPeer peerConn, =>
             peerConn.accept()
-            peerConn.updateContents @contents # TODO: if contents is empty,
-                                              #       then server is starting
+            peerConn.updateContents @contents[peerConn.key].serialize()
 
         when 'ping'
-          @info "new ping connection (key=#{peerConn.key}, ip=#{peerConn.ip})"
+          @info "new ping connection (key=#{peerConn.key})"
 
           setInterval =>
             peerConn.disconnectWithError 'timeout for joining the network'
@@ -122,7 +125,7 @@ exports = module.exports = class BCDNTracker
       @ips[peer.ip]++
       _action = "register"
 
-    @debug "#{_action} peer (key=#{peer.key}, id=#{peer.id}, ip=#{peer.ip})"
+    @debug "#{_action} peer (key=#{peer.key}, id=#{peer.id})"
     @peers[peer.key][peer.id] = peer
 
     cb()
@@ -134,7 +137,6 @@ exports = module.exports = class BCDNTracker
 
     if key in @options.keys
       # initialize variables
-      @peers[key] ?= {}
       @ips[ip] ?= 0
 
       # check concurrent limit
@@ -163,12 +165,15 @@ exports = module.exports = class BCDNTracker
 
   removePeer: (peer) ->
     if peer is @peers[peer.key][peer.id]
-      @debug "remove peer (key=#{peer.key}, id=#{peer.id}, ip=#{peer.ip})"
+      @debug "remove peer (key=#{peer.key}, id=#{peer.id})"
       delete @peers[peer.key][peer.id]
       @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip] - 1}"
       @ips[peer.ip]--
 
 
 
-  updateContents: ->
-    return # TODO: read contents from directory
+  updateAllContents: ->
+    for key, content of @contents
+      content.deserialize "./data/#{key}", =>
+        for id, peerConn of @peers[key]
+          peerConn.updateContents content.serialize()

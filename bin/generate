@@ -6,11 +6,11 @@ set -e
 [ -z "$1" ] && KEY=bcdn
 
 # setup
-TIMESTAMPS="$(date +%s)"
+TIMESTAMP="$(date +%s)"
 DIR_ROOT="$(pwd)"
 DIR_FILES="${DIR_ROOT}/files/$KEY"
 DIR_DATA="${DIR_ROOT}/data/$KEY"
-DIR_TMPDATA="${DIR_DATA}-tmp_$TIMESTAMPS"
+DIR_TMPDATA="${DIR_DATA}-tmp_$TIMESTAMP"
 HASH_TOOL=sha256sum
 CHUNK_SIZE=256K
 
@@ -88,6 +88,7 @@ done
 # update data directory
 rm -rf "$DIR_DATA"
 mv "$DIR_TMPDATA" "$DIR_DATA"
+echo "$TIMESTAMP" > "${DIR_DATA}/timestamp"
 
 # TODO: notify server for the update
 
