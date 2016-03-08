@@ -17,7 +17,7 @@ exports = module.exports = class ContentsFile extends Contents
 
       newTimestamp = parseInt data
       if newTimestamp > @timestamp
-        @debug "found new contents from #{directory}" +
+        @debug "found new contents from #{directory} " +
                "(#{@timestamp} => #{newTimestamp})"
 
         # update contents

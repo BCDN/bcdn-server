@@ -1,0 +1,127 @@
+url = require 'url'
+WebSocketServer = require('ws').Server
+
+PeerConnection = require './PeerConnection'
+
+logger = require 'debug'
+
+exports = module.exports = class PeerManager extends WebSocketServer
+  debug: logger 'PeerManager:debug'
+  info: logger 'PeerManager:info'
+
+  constructor: (server, mountpath, @opts) ->
+    {keys} = @opts
+    @info "peer manager starting (keys=[#{keys}])..."
+
+    # initialize variables
+    # connection for peers: peerConnections[key][id] => PeerConnection
+    @peerConnections = {}
+    @peerConnections[key] ?= {} for key in keys
+    # concurrent users for a IP: ips[ip] => count, clean up every 10 minutes
+    @ips = {}
+    setInterval =>
+      for key, count of @ips
+        delete @ips[key] if count is 0
+    , 600000
+
+    # setup server for WebSocket
+    super path: mountpath, server: server
+    @on 'connection', (socket) =>
+      # parse connect parameters
+      {key, id, token} = url.parse(socket.upgradeReq.url, true).query
+      connType = if token? then 'peer' else 'ping'
+
+
+      # initialize peer connection
+      generateId = ->
+        "P#{('0000000000' + Math.random().toString(10)).substr(-10)}"
+      peerConn = new PeerConnection key, id || generateId(), token, socket
+
+
+      # check key and limits
+      @checkKeyAndLimits peerConn.key, peerConn.ip, (errorMsg) ->
+        peerConn.disconnectWithError errorMsg if errorMsg?
+
+
+      # setup handlers for the peer connection
+      peerConn.on 'CLOSE', =>
+        @info "peer has left (key=#{peerConn.key}, id=#{peerConn.id})"
+        @removePeerConnection peerConn
+      # TODO: setup more handlers
+      # peerConn.on 'RESOURCE'
+
+
+      # accept different types of connection
+      switch connType
+        when 'peer'
+          @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id}..."
+
+          # register peer
+          @registerPeerConnection peerConn, =>
+            peerConn.accept()
+            @emit 'join', peerConn
+
+        when 'ping'
+          @info "new ping connection (key=#{peerConn.key})"
+
+          setInterval =>
+            peerConn.disconnectWithError 'timeout for joining the network'
+          , @opts.timeout
+
+
+
+  checkKeyAndLimits: (key, ip, cb) ->
+    return cb 'key is required for connection' unless key?
+
+    if key in @opts.keys
+      # initialize variables
+      @ips[ip] ?= 0
+
+      # check concurrent limit
+      if Object.keys(@peerConnections[key]).length >= @opts.concurrent_limit
+        cb 'tracker has reached its concurrent user limit'
+        return
+      if @ips[ip] >= @opts.ip_limit
+        cb "#{ip} has reached its concurrent user limit"
+        return
+
+      # key is valid
+      cb null
+    else
+      cb 'invalid key provided'
+
+
+
+  registerPeerConnection: (peer, cb) ->
+    # register peer if haven't been registered yet
+    if @peerConnections[peer.key][peer.id]?
+      if peer.token is @peerConnections[peer.key][peer.id].token
+        # connection need to be updated (close old connection)
+        @peerConnections[peer.key][peer.id].close()
+        _action = "update"
+      else
+        return socket.disconnectWithError 'ID is taken'
+    else
+      @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip] + 1}"
+      @ips[peer.ip]++
+      _action = "register"
+
+    @debug "#{_action} peer (key=#{peer.key}, id=#{peer.id})"
+    @peerConnections[peer.key][peer.id] = peer
+
+    cb()
+
+
+
+  removePeerConnection: (peer) ->
+    if peer is @peerConnections[peer.key][peer.id]
+      @debug "remove peer (key=#{peer.key}, id=#{peer.id})"
+      delete @peerConnections[peer.key][peer.id]
+      @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip] - 1}"
+      @ips[peer.ip]--
+
+
+
+  updateContentsFor: (key, contents) ->
+    for id, peerConn of @peerConnections[key]
+      peerConn.updateContents contents

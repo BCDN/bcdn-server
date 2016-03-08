@@ -35,7 +35,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
       when 'ping'
         # close after ping received
         @socket.on 'ping', =>
-          @debug "got ping (ip=#{@ip})"
+          @debug "got ping (key=#{@key})"
           @socket.close()
 
 
