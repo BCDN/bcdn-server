@@ -1,13 +1,14 @@
 ContentsFile = require './ContentsFile'
 
 exports = module.exports = class ContentsManager
-  constructor: (@options) ->
+  constructor: (options) ->
+    {@keys, @data} = options
     @allContents = {}
-    @allContents[key] = new ContentsFile() for key in @options.keys
+    @allContents[key] = new ContentsFile() for key in @keys
 
   reloadContents: (cb) ->
     for key, contents of @allContents
-      contents.deserialize "#{@options.data}/#{key}", =>
+      contents.deserialize "#{@data}/contents/#{key}", =>
         cb key
 
   get: (key) -> @allContents[key]
