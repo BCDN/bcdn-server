@@ -5,6 +5,7 @@ mix = require('bcdn').mix
 logger = require 'debug'
 
 exports = module.exports = class PeerConnection extends mix Peer, Serializable
+  verbose: logger 'PeerConnection:verbose'
   debug: logger 'PeerConnection:debug'
   info: logger 'PeerConnection:info'
   error: logger 'PeerConnection:error'
@@ -23,9 +24,9 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
             return @debug "error to deserialize: #{e}, (data=#{data})"
 
           # sanitize malformed messages
-          return unless content.type in []
+          return unless content.type in ['RESOURCE']
 
-          @debug "peer has sent a message (id=#{@id}, data=#{data})"
+          @verbose "peer has sent a message (id=#{@id}, data=#{data})"
 
           # emit information
           @emit content.type, content.payload
@@ -44,7 +45,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
   send: (msg) ->
     content = @serialize msg
     @socket.send content
-    @debug "message sent to peer (key=#{@key}, id=#{@id}): #{content}"
+    @verbose "message sent to peer (key=#{@key}, id=#{@id}): #{content}"
 
   disconnectWithError: (msg) =>
     # 1002 - CLOSE_PROTOCOL_ERROR for WebSocket
@@ -54,6 +55,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
 
 
   # action helpers
-  updateContents: (contents) -> @send type: 'UPDATE', payload: contents
-  accept:                    -> @send type: 'JOINED', payload: id: @id
+  accept:                       -> @send type: 'JOINED', payload: id: @id
+  updateContents: (contents)    -> @send type: 'UPDATE', payload: contents
+  sendResourceIndex: (contents) -> @send type: 'INDEX',  payload: contents
 

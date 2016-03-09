@@ -7,6 +7,7 @@ mix = require('bcdn').mix
 logger = require 'debug'
 
 exports = module.exports = class TrackerConnection extends mix Serializable
+  verbose: logger 'TrackerConnection:verbose'
   debug: logger 'TrackerConnection:debug'
   info: logger 'TrackerConnection:info'
 
@@ -20,7 +21,7 @@ exports = module.exports = class TrackerConnection extends mix Serializable
       # sanitize malformed messages
       return unless content.type in ['ACCEPT']
 
-      @debug "got a message from tracker (id=#{@id}, data=#{data})"
+      @verbose "got a message from tracker (id=#{@id}, data=#{data})"
 
       # emit information
       @socket.emit content.type, content.payload
@@ -35,7 +36,7 @@ exports = module.exports = class TrackerConnection extends mix Serializable
   send: (msg) ->
     content = @serialize msg
     @socket.send content
-    @debug "message sent to tracker (id=#{@id}): #{content}"
+    @verbose "message sent to tracker (id=#{@id}): #{content}"
 
   # action helpers
   accept: (tracker_id) -> @send type: 'ACCEPT', payload: id: tracker_id

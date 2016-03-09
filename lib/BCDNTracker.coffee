@@ -1,6 +1,7 @@
 PeerManager = require './PeerManager'
 TrackerManager = require './TrackerManager'
 ContentsManager = require './ContentsManager'
+ResourceManager = require './ResourceManager'
 
 logger = require 'debug'
 
@@ -51,6 +52,7 @@ exports = module.exports = class BCDNTracker
     @peers = new PeerManager server, "#{mountpath}peer", options
     @trackers = new TrackerManager server, "#{mountpath}tracker", options
     @contents = new ContentsManager options
+    @resources = new ResourceManager options
 
     # load content on tracker start
     @contents.reloadContents (key) =>
@@ -59,5 +61,9 @@ exports = module.exports = class BCDNTracker
     # update content on peer join
     @peers.on 'join', (peerConn) =>
       peerConn.updateContents @contents.get(peerConn.key).serialize()
+    @peers.on 'queryResource', (peerConn, hash) =>
+      @resources.load hash, (resource) =>
+        peerConn.sendResourceIndex resource.serialize()
+        # TODO: setup listeners to push peers
 
     @info "tracker started"
