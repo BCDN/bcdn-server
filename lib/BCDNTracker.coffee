@@ -1,7 +1,9 @@
+ResourceState = require('bcdn').ResourceState
 PeerManager = require './PeerManager'
 TrackerManager = require './TrackerManager'
 ContentsManager = require './ContentsManager'
 ResourceManager = require './ResourceManager'
+ResourceTracking = require './ResourceTracking'
 
 logger = require 'debug'
 
@@ -53,6 +55,7 @@ exports = module.exports = class BCDNTracker
     @trackers = new TrackerManager server, "#{mountpath}tracker", options
     @contents = new ContentsManager options
     @resources = new ResourceManager options
+    @tracking = new ResourceTracking()
 
     # load content on tracker start
     @contents.reloadContents (key) =>
@@ -64,6 +67,18 @@ exports = module.exports = class BCDNTracker
     @peers.on 'queryResource', (peerConn, hash) =>
       @resources.load hash, (resource) =>
         peerConn.sendResourceIndex resource.serialize()
+        @trackers.announceDownload peerConn.id, hash
         # TODO: setup listeners to push peers
+
+    # handle peer announcement
+    @trackers.on 'announce', (payload) =>
+      {peer, hash, state} = payload
+      switch state
+        when ResourceState.DOWNLOADING
+          @tracking.download peer, hash
+        when ResourceState.SHARING
+          @tracking.download peer, hash
+        when ResourceState.DONE
+          @tracking.download peer, hash
 
     @info "tracker started"

@@ -2,6 +2,7 @@ url = require 'url'
 WebSocketServer = require('ws').Server
 WebSocket = require 'ws'
 
+ResourceState = require('bcdn').ResourceState
 TrackerConnection = require './TrackerConnection'
 
 logger = require 'debug'
@@ -10,8 +11,12 @@ exports = module.exports = class TrackerManager extends WebSocketServer
   debug: logger 'TrackerManager:debug'
   info: logger 'TrackerManager:info'
 
+  trackers: {}
+
   constructor: (server, mountpath, opts) ->
-    {@trackers, @secret, @timeout, @tracker_id} = opts
+    {trackers, @secret, @timeout, @tracker_id} = opts
+    @trackerURLs = trackers
+
     @info "tracker manager starting (mountpath=#{mountpath}, " +
                                      "id=#{@tracker_id})..."
 
@@ -29,14 +34,18 @@ exports = module.exports = class TrackerManager extends WebSocketServer
 
       connection.accept @tracker_id
 
+      connection.socket.on 'ANNOUNCE', (payload) =>
+        @emit 'announce', payload
+
     # initialize variables
     # connection for trackers: trackerConnections[id] => TrackerConnection
     @trackerConnections = {}
 
     @on 'listening', =>
-      for tracker in @trackers
-        do (tracker) =>
-          socket = new WebSocket "#{tracker}?id=#{@tracker_id}&secret=#{@secret}"
+      for trackerURL in @trackerURLs
+        do (trackerURL) =>
+          socket = new WebSocket "#{trackerURL}?id=#{@tracker_id}" +
+                                 "&secret=#{@secret}"
           connection = new TrackerConnection socket
 
           wait = setTimeout =>
@@ -50,3 +59,20 @@ exports = module.exports = class TrackerManager extends WebSocketServer
             connection.id = id
             @trackerConnections[id] = connection
             @info "tracker connected (id=#{connection.id})..."
+
+            @trackers[id] = connection
+
+
+
+  announce: (info) -> @boardcast type: 'ANNOUNCE', payload: info
+  announceDownload: (peer, hash) ->
+    @announce peer: peer, hash: hash, state: ResourceState.DOWNLOADING
+  announceShare: (peer, hash) ->
+    @announce peer: peer, hash: hash, state: ResourceState.SHARING
+  announceLeave: (peer, hash) ->
+    @announce peer: peer, hash: hash, state: ResourceState.DONE
+
+
+
+  boardcast: (msg) ->
+    tracker.send msg for id, tracker of @trackers
