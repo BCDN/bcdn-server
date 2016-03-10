@@ -64,11 +64,13 @@ exports = module.exports = class BCDNTracker
     # update content on peer join
     @peers.on 'join', (peerConn) =>
       peerConn.updateContents @contents.get(peerConn.key).serialize()
+    @peers.on 'close', (peerConn) =>
+      @trackers.announceClose peerConn.id
     @peers.on 'queryResource', (peerConn, hash) =>
       @resources.load hash, (resource) =>
         peerConn.sendResourceIndex resource.serialize()
         @trackers.announceDownload peerConn.id, hash
-        # TODO: setup listeners to push peers
+        peerConn.sendCandidate peers if (peers = @tracking.get hash)?
 
     # handle peer announcement
     @trackers.on 'announce', (payload) =>
@@ -76,9 +78,12 @@ exports = module.exports = class BCDNTracker
       switch state
         when ResourceState.DOWNLOADING
           @tracking.download peer, hash
+          peers = Array.from @tracking.get(hash).downloading
         when ResourceState.SHARING
-          @tracking.download peer, hash
+          @tracking.share peer, hash
         when ResourceState.DONE
-          @tracking.download peer, hash
+          @tracking.leave peer, hash
+        else
+          @tracking.close peer
 
     @info "tracker started"

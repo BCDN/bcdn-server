@@ -8,20 +8,34 @@ exports = module.exports = class ResourceTracking
 
   download: (peer, hash) ->
     # use cached tracking information if applicable
-    @tracking[hash] = downloading: {}, sharing: {} unless @tracking[hash]?
-    @tracking[hash].downloading[peer.id] = peer
+    unless @tracking[hash]?
+      @tracking[hash] =
+        downloading: new Set(),
+        sharing:     new Set()
+
+    @tracking[hash].downloading.add peer
     @debug "peer=#{peer} start downloading resource=#{hash}"
 
   share: (peer, hash) ->
-    delete @tracking[hash].downloading[peer.id]
-    @tracking[hash].sharing[peer.id] = peer
-    @debug "peer=#{peer} start sharing resource=#{hash}"
+    if (@tracking[hash].downloading.delete peer) or
+       (@tracking[hash].sharing.add peer)
+      @debug "peer=#{peer} start sharing resource=#{hash}"
 
   leave: (peer, hash) ->
-    delete @tracking[hash].downloading[peer.id]
-    delete @tracking[hash].sharing[peer.id]
-    if Object.keys(@tracking[hash].downloading).length is 0 and
-       Object.keys(@tracking[hash].sharing).length is 0
+    if (@tracking[hash].downloading.delete peer) or
+       (@tracking[hash].sharing.delete peer)
+      @debug "peer=#{peer} has left for resource=#{hash}"
+
+    if @tracking[hash].downloading.size is 0 and
+       @tracking[hash].sharing.size is 0
       delete @tracking[hash]
-    @debug "peer=#{peer} has left for resource=#{hash}"
-      # FIXME: delete resource cache from resource manager
+    # FIXME: delete resource cache from resource manager if nobody need it
+
+  close: (peer) ->
+    for hash in Object.keys @tracking
+      @leave peer, hash
+
+  get: (hash) ->
+    @tracking[hash] and
+      downloading: Array.from @tracking[hash].downloading
+      sharing: Array.from @tracking[hash].sharing

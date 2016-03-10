@@ -71,6 +71,8 @@ exports = module.exports = class TrackerManager extends WebSocketServer
     @announce peer: peer, hash: hash, state: ResourceState.SHARING
   announceLeave: (peer, hash) ->
     @announce peer: peer, hash: hash, state: ResourceState.DONE
+  announceClose: (peer) ->
+    @announce peer: peer
 
 
 
