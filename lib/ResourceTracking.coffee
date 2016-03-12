@@ -37,5 +37,6 @@ exports = module.exports = class ResourceTracking
 
   get: (hash) ->
     @tracking[hash] and
+      hash: hash
       downloading: Array.from @tracking[hash].downloading
       sharing: Array.from @tracking[hash].sharing

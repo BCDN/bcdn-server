@@ -70,7 +70,7 @@ exports = module.exports = class BCDNTracker
       @resources.load hash, (resource) =>
         peerConn.sendResourceIndex resource.serialize()
         @trackers.announceDownload peerConn.id, hash
-        peerConn.sendCandidate peers if (peers = @tracking.get hash)?
+        peerConn.sendCandidate candidates if (candidates = @tracking.get hash)?
 
     # handle peer announcement
     @trackers.on 'announce', (payload) =>

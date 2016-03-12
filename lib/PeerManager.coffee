@@ -52,7 +52,6 @@ exports = module.exports = class PeerManager extends WebSocketServer
       peerConn.on 'RESOURCE', (payload) =>
         {hash} = payload
         @emit 'queryResource', peerConn, hash
-        # TODO: send peer candidates
 
       # accept different types of connection
       switch connType

@@ -57,6 +57,6 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
   # action helpers
   accept:                       -> @send type: 'JOINED',    payload: id: @id
   updateContents: (contents)    -> @send type: 'UPDATE',    payload: contents
-  sendResourceIndex: (contents) -> @send type: 'INDEX',     payload: contents
-  sendCandidate: (peers)        -> @send type: 'CANDIDATE', payload: peers
+  sendResourceIndex: (indexes)  -> @send type: 'INDEX',     payload: indexes
+  sendCandidate: (candidates)   -> @send type: 'CANDIDATE', payload: candidates
 
