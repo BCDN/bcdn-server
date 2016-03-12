@@ -16,12 +16,10 @@ exports = module.exports = class PeerManager extends WebSocketServer
     # initialize variables
     # connection for peers: peerConnections[key][id] => PeerConnection
     @peerConnections = {}
-    @peerConnections[key] ?= {} for key in @keys
     # concurrent users for a IP: ips[ip] => count, clean up every 10 minutes
     @ips = {}
     setInterval =>
-      for key, count of @ips
-        delete @ips[key] if count is 0
+      delete @ips[ip] if count is 0 for ip, count of @ips
     , 600000
 
     # setup server for WebSocket
@@ -52,6 +50,9 @@ exports = module.exports = class PeerManager extends WebSocketServer
       peerConn.on 'RESOURCE', (payload) =>
         {hash} = payload
         @emit 'queryResource', peerConn, hash
+      peerConn.on 'SIGNAL', (payload) =>
+        payload.from = peerConn.id
+        @emit 'signal', payload
 
       # accept different types of connection
       switch connType
@@ -80,7 +81,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
       @ips[ip] ?= 0
 
       # check concurrent limit
-      if Object.keys(@peerConnections[key]).length >= @concurrent_limit
+      if Object.keys(@peerConnections).length >= @concurrent_limit
         cb 'tracker has reached its concurrent user limit'
         return
       if @ips[ip] >= @ip_limit
@@ -96,10 +97,10 @@ exports = module.exports = class PeerManager extends WebSocketServer
 
   registerPeerConnection: (peer, cb) ->
     # register peer if haven't been registered yet
-    if @peerConnections[peer.key][peer.id]?
-      if peer.token is @peerConnections[peer.key][peer.id].token
+    if @peerConnections[peer.id]?
+      if peer.token is @peerConnections[peer.id].token
         # connection need to be updated (close old connection)
-        @peerConnections[peer.key][peer.id].close()
+        @peerConnections[peer.id].close()
         _action = "update"
       else
         return socket.disconnectWithError 'ID is taken'
@@ -109,21 +110,25 @@ exports = module.exports = class PeerManager extends WebSocketServer
       _action = "register"
 
     @debug "#{_action} peer (key=#{peer.key}, id=#{peer.id})"
-    @peerConnections[peer.key][peer.id] = peer
+    @peerConnections[peer.id] = peer
 
     cb()
 
 
 
   removePeerConnection: (peer) ->
-    if peer is @peerConnections[peer.key][peer.id]
+    if peer is @peerConnections[peer.id]
       @debug "remove peer (key=#{peer.key}, id=#{peer.id})"
-      delete @peerConnections[peer.key][peer.id]
+      delete @peerConnections[peer.id]
       @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip] - 1}"
       @ips[peer.ip]--
 
 
 
   updateContentsFor: (key, contents) ->
-    for id, peerConn of @peerConnections[key]
-      peerConn.updateContents contents
+    for id, peerConn of @peerConnections
+      peerConn.updateContents contents if peerConn.key is key
+
+
+
+  get: (id) -> @peerConnections[id]

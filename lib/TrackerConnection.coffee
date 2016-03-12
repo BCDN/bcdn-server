@@ -19,7 +19,7 @@ exports = module.exports = class TrackerConnection extends mix Serializable
         return @debug "error to deserialize: #{e}, (data=#{data})"
 
       # sanitize malformed messages
-      return unless content.type in ['ACCEPT', 'ANNOUNCE']
+      return unless content.type in ['ACCEPT', 'ANNOUNCE', 'SIGNAL']
 
       @verbose "got a message from tracker (id=#{@id}, data=#{data})"
 
@@ -39,4 +39,5 @@ exports = module.exports = class TrackerConnection extends mix Serializable
     @verbose "message sent to tracker (id=#{@id}): #{content}"
 
   # action helpers
-  accept: (tracker_id) -> @send type: 'ACCEPT',   payload: id: tracker_id
+  accept: (tracker) -> @send type: 'ACCEPT', payload: tracker
+  signal: (detail) ->  @send type: 'SIGNAL', payload: detail

@@ -24,7 +24,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
             return @debug "error to deserialize: #{e}, (data=#{data})"
 
           # sanitize malformed messages
-          return unless content.type in ['RESOURCE']
+          return unless content.type in ['RESOURCE', 'SIGNAL']
 
           @verbose "peer has sent a message (id=#{@id}, data=#{data})"
 
@@ -59,4 +59,4 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
   updateContents: (contents)    -> @send type: 'UPDATE',    payload: contents
   sendResourceIndex: (indexes)  -> @send type: 'INDEX',     payload: indexes
   sendCandidate: (candidates)   -> @send type: 'CANDIDATE', payload: candidates
-
+  signal: (detail)              -> @send type: 'SIGNAL',    payload: detail

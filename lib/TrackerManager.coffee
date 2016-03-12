@@ -32,10 +32,13 @@ exports = module.exports = class TrackerManager extends WebSocketServer
         @trackerConnections[id] = connection
         @info "tracker connected (id=#{id})..."
 
-      connection.accept @tracker_id
+      connection.accept id: @tracker_id
 
       connection.socket.on 'ANNOUNCE', (payload) =>
         @emit 'announce', payload
+
+      connection.socket.on 'SIGNAL', (payload) =>
+        @emit 'signal', payload
 
     # initialize variables
     # connection for trackers: trackerConnections[id] => TrackerConnection
@@ -78,3 +81,10 @@ exports = module.exports = class TrackerManager extends WebSocketServer
 
   boardcast: (msg) ->
     tracker.send msg for id, tracker of @trackers
+
+
+
+  passSignal: (detail) ->
+    {to} = detail
+    targetTracker = to.split('-')[0]
+    target.signal detail if (target = @trackers[targetTracker])?
