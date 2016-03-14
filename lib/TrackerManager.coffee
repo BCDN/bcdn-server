@@ -10,11 +10,11 @@ exports = module.exports = class TrackerManager extends WebSocketServer
   debug: logger 'TrackerManager:debug'
   info: logger 'TrackerManager:info'
 
-  trackers: {}
-
   constructor: (server, mountpath, opts) ->
     {trackers, @secret, @timeout, @tracker_id} = opts
     @trackerURLs = trackers
+
+    @trackers = {}
 
     @info "tracker manager starting (mountpath=#{mountpath}, " +
                                      "id=#{@tracker_id})..."

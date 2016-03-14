@@ -2,8 +2,10 @@ logger = require 'debug'
 
 exports = module.exports = class ResourceTracking
   debug: logger 'ResourceTracking:debug'
-  # tracking[hash] => peerId: peerConnection
-  tracking: {}
+
+  constructor: ->
+    # tracking[hash] => peerId: peerConnection
+    @tracking = {}
 
   track: (peer, hash) ->
     # use cached tracking information if applicable
