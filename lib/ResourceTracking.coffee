@@ -2,41 +2,24 @@ logger = require 'debug'
 
 exports = module.exports = class ResourceTracking
   debug: logger 'ResourceTracking:debug'
-  # tracking[hash] => downloading: peerId: peerConnection,
-  #                       sharing: peerId: peerConnection
+  # tracking[hash] => peerId: peerConnection
   tracking: {}
 
-  download: (peer, hash) ->
+  track: (peer, hash) ->
     # use cached tracking information if applicable
-    unless @tracking[hash]?
-      @tracking[hash] =
-        downloading: new Set(),
-        sharing:     new Set()
-
-    @tracking[hash].downloading.add peer
-    @debug "peer=#{peer} start downloading resource=#{hash}"
-
-  share: (peer, hash) ->
-    if (@tracking[hash].downloading.delete peer) or
-       (@tracking[hash].sharing.add peer)
-      @debug "peer=#{peer} start sharing resource=#{hash}"
+    @tracking[hash] = new Set() unless @tracking[hash]?
+    @tracking[hash].add peer
+    @debug "track peer=#{peer} for downloading resource=#{hash}"
 
   leave: (peer, hash) ->
-    if (@tracking[hash].downloading.delete peer) or
-       (@tracking[hash].sharing.delete peer)
+    if @tracking[hash].delete peer
       @debug "peer=#{peer} has left for resource=#{hash}"
 
-    if @tracking[hash].downloading.size is 0 and
-       @tracking[hash].sharing.size is 0
-      delete @tracking[hash]
+    delete @tracking[hash] if @tracking[hash].size is 0
     # FIXME: delete resource cache from resource manager if nobody need it
 
   close: (peer) ->
-    for hash in Object.keys @tracking
-      @leave peer, hash
+    @leave peer, hash for hash in Object.keys @tracking
 
   get: (hash) ->
-    @tracking[hash] and
-      hash: hash
-      downloading: Array.from @tracking[hash].downloading
-      sharing: Array.from @tracking[hash].sharing
+    @tracking[hash]? and (Array.from @tracking[hash]) or []

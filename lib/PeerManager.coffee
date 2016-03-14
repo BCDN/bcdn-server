@@ -47,9 +47,9 @@ exports = module.exports = class PeerManager extends WebSocketServer
         @info "peer has left (key=#{peerConn.key}, id=#{peerConn.id})"
         @removePeerConnection peerConn
         @emit 'close', peerConn
-      peerConn.on 'RESOURCE', (payload) =>
+      peerConn.on 'DOWNLOAD', (payload) =>
         {hash} = payload
-        @emit 'queryResource', peerConn, hash
+        @emit 'download', peerConn, hash
       peerConn.on 'SIGNAL', (payload) =>
         payload.from = peerConn.id
         @emit 'signal', payload

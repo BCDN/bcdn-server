@@ -2,7 +2,6 @@ url = require 'url'
 WebSocketServer = require('ws').Server
 WebSocket = require 'ws'
 
-ResourceState = require('bcdn').ResourceState
 TrackerConnection = require './TrackerConnection'
 
 logger = require 'debug'
@@ -68,14 +67,12 @@ exports = module.exports = class TrackerManager extends WebSocketServer
 
 
   announce: (info) -> @boardcast type: 'ANNOUNCE', payload: info
-  announceDownload: (peer, hash) ->
-    @announce peer: peer, hash: hash, state: ResourceState.DOWNLOADING
-  announceShare: (peer, hash) ->
-    @announce peer: peer, hash: hash, state: ResourceState.SHARING
+  announceTrack: (peer, hash) ->
+    @announce peer: peer, action: 'track', hash: hash
   announceLeave: (peer, hash) ->
-    @announce peer: peer, hash: hash, state: ResourceState.DONE
+    @announce peer: peer, action: 'leave', hash: hash
   announceClose: (peer) ->
-    @announce peer: peer
+    @announce peer: peer, action: 'close'
 
 
 

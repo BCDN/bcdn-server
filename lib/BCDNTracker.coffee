@@ -1,4 +1,3 @@
-ResourceState = require('bcdn').ResourceState
 PeerManager = require './PeerManager'
 TrackerManager = require './TrackerManager'
 ContentsManager = require './ContentsManager'
@@ -66,26 +65,25 @@ exports = module.exports = class BCDNTracker
       peerConn.updateContents @contents.get(peerConn.key).serialize()
     @peers.on 'close', (peerConn) =>
       @trackers.announceClose peerConn.id
-    @peers.on 'queryResource', (peerConn, hash) =>
+    @peers.on 'download', (peerConn, hash) =>
       @resources.load hash, (resource) =>
-        peerConn.sendResourceIndex resource.serialize()
-        @trackers.announceDownload peerConn.id, hash
-        peerConn.sendCandidate candidates if (candidates = @tracking.get hash)?
+        peerConn.sendResourceInfo
+          hash: hash
+          resource: resource.serialize()
+          candidates: @tracking.get hash
+        @trackers.announceTrack peerConn.id, hash
     @peers.on 'signal', (detail) =>
       @trackers.passSignal detail
 
     # handle peer announcement
     @trackers.on 'announce', (payload) =>
-      {peer, hash, state} = payload
-      switch state
-        when ResourceState.DOWNLOADING
-          @tracking.download peer, hash
-          peers = Array.from @tracking.get(hash).downloading
-        when ResourceState.SHARING
-          @tracking.share peer, hash
-        when ResourceState.DONE
+      {peer, action, hash} = payload
+      switch action
+        when 'track'
+          @tracking.track peer, hash
+        when 'leave'
           @tracking.leave peer, hash
-        else
+        when 'close'
           @tracking.close peer
     @trackers.on 'signal', (payload) =>
       {to} = payload
