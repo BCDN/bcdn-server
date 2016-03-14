@@ -53,6 +53,8 @@ exports = module.exports = class PeerManager extends WebSocketServer
       peerConn.on 'SIGNAL', (payload) =>
         payload.from = peerConn.id
         @emit 'signal', payload
+      peerConn.on 'FETCH', (piece) =>
+        @emit 'fetch', peerConn, piece
 
       # accept different types of connection
       switch connType

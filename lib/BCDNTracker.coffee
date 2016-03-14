@@ -2,6 +2,7 @@ PeerManager = require './PeerManager'
 TrackerManager = require './TrackerManager'
 ContentsManager = require './ContentsManager'
 ResourceManager = require './ResourceManager'
+PieceManager = require './PieceManager'
 ResourceTracking = require './ResourceTracking'
 
 logger = require 'debug'
@@ -54,6 +55,7 @@ exports = module.exports = class BCDNTracker
     @trackers = new TrackerManager server, "#{mountpath}tracker", options
     @contents = new ContentsManager options
     @resources = new ResourceManager options
+    @pieces = new PieceManager options
     @tracking = new ResourceTracking()
 
     # load content on tracker start
@@ -74,6 +76,9 @@ exports = module.exports = class BCDNTracker
         @trackers.announceTrack peerConn.id, hash
     @peers.on 'signal', (detail) =>
       @trackers.passSignal detail
+    @peers.on 'fetch', (peerConn, piece) =>
+      @pieces.load piece, (buffer) =>
+        peerConn.socket.send buffer, binary: true, mask: true
 
     # handle peer announcement
     @trackers.on 'announce', (payload) =>

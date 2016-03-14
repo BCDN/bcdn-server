@@ -24,7 +24,7 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
             return @debug "error to deserialize: #{e}, (data=#{data})"
 
           # sanitize malformed messages
-          return unless content.type in ['DOWNLOAD', 'SIGNAL']
+          return unless content.type in ['DOWNLOAD', 'SIGNAL', 'FETCH']
 
           @verbose "peer has sent a message (id=#{@id}, data=#{data})"
 
