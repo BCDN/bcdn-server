@@ -31,21 +31,14 @@ exports = module.exports = class ContentsFile extends Contents
 
             # parse path
             path = tokens[0]
-            auto = false
 
             # ignore invalid path
             continue if path is ''
-
-            # check for auto load
-            if path.startsWith '!'
-              path = path.substr 1
-              auto = true
 
             # create new entry
             newResouces[path] =
               size: parseInt tokens[1]
               hash: tokens[2]
-              auto: auto
 
           @timestamp = newTimestamp
           @resources = newResouces
