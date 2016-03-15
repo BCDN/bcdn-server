@@ -12,11 +12,12 @@
     "coffee-script": "^1.10.0",
     "debug": "^2.2.0",
     "express": "^4.13.4",
-    "optimist": "^0.6.1",
     "ws": "^1.0.1"
   },
   "description": "Server for Browser-side CDN",
-  "devDependencies": {},
+  "devDependencies": {
+    "optimist": "^0.6.1"
+  },
   "directories": {},
   "homepage": "https://git.vizv.com/bcdn/bcdn-server",
   "keywords": [
