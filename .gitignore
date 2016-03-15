@@ -17,3 +17,7 @@
 # NodeJS
 /node_modules/
 npm-debug.log
+
+# Project
+/files/
+/data/

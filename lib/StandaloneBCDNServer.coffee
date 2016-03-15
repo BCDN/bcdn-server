@@ -1,27 +1,20 @@
 express = require 'express'
-Proto = require './server'
 http = require 'http'
 https = require 'https'
 
-class ExpressBCDNServer
-  constructor: (server, options) ->
-    app = express()
+ExpressBCDNServer = require './ExpressBCDNServer'
 
-    app.on 'mount', ->
-      app._bcdn = new Proto app, server, options
-
-    return app
-
-class BCDNServer
+exports = module.exports = class StandaloneBCDNServer
   constructor: (options, callbacks) ->
     app = express()
 
     default_options =
+      host: '127.0.0.1'
       path: '/'
       port: 80
     default_options extends options
 
-    {path, port} = options
+    {path, host, port} = options
 
     if options.ssl
       server = https.createServer options.ssl, app
@@ -31,11 +24,8 @@ class BCDNServer
     bcdn = ExpressBCDNServer(server, options)
     app.use path, bcdn
 
-    server.listen port, ->
+    server.listen port, host, ->
       callbacks(server) if callbacks
 
     return bcdn
 
-exports = module.exports =
-  BCDNServer: BCDNServer
-  ExpressBCDNServer: ExpressBCDNServer
