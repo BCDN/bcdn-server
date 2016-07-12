@@ -38,8 +38,8 @@ exports = module.exports = class PeerManager extends WebSocketServer
 
 
       # check key and limits
-      @checkKeyAndLimits peerConn.key, peerConn.ip, (errorMsg) ->
-        peerConn.disconnectWithError errorMsg if errorMsg?
+      error = @checkKeyAndLimits peerConn.key, peerConn.ip
+      return peerConn.disconnectWithError error if error?
 
 
       # setup handlers for the peer connection
@@ -62,9 +62,11 @@ exports = module.exports = class PeerManager extends WebSocketServer
           @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id})..."
 
           # register peer
-          @registerPeerConnection peerConn, =>
-            peerConn.accept()
-            @emit 'join', peerConn
+          error = @registerPeerConnection peerConn
+          return socket.disconnectWithError error if error?
+
+          peerConn.accept()
+          @emit 'join', peerConn
 
         when 'ping'
           @info "new ping connection (key=#{peerConn.key})"
@@ -75,29 +77,25 @@ exports = module.exports = class PeerManager extends WebSocketServer
 
 
 
-  checkKeyAndLimits: (key, ip, cb) ->
-    return cb 'key is required for connection' unless key?
+  checkKeyAndLimits: (key, ip) ->
+    return 'key is required for connection' unless key?
+    return 'invalid key provided' if key not in @keys
 
-    if key in @keys
-      # initialize variables
-      @ips[ip] ?= 0
+    # initialize variables
+    @ips[ip] ?= 0
 
-      # check concurrent limit
-      if Object.keys(@peerConnections).length >= @concurrent_limit
-        cb 'tracker has reached its concurrent user limit'
-        return
-      if @ips[ip] >= @ip_limit
-        cb "#{ip} has reached its concurrent user limit"
-        return
+    # check concurrent limit
+    if Object.keys(@peerConnections).length >= @concurrent_limit
+      return 'tracker has reached its concurrent user limit'
+    if @ips[ip] >= @ip_limit
+      return "#{ip} has reached its concurrent user limit"
 
-      # key is valid
-      cb null
-    else
-      cb 'invalid key provided'
+    # key is valid
+    return
 
 
 
-  registerPeerConnection: (peer, cb) ->
+  registerPeerConnection: (peer) ->
     # register peer if haven't been registered yet
     if @peerConnections[peer.id]?
       if peer.token is @peerConnections[peer.id].token
@@ -105,7 +103,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
         @peerConnections[peer.id].close()
         _action = "update"
       else
-        return socket.disconnectWithError 'ID is taken'
+        return 'ID is taken'
     else
       @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip] + 1}"
       @ips[peer.ip]++
@@ -114,7 +112,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
     @debug "#{_action} peer (key=#{peer.key}, id=#{peer.id})"
     @peerConnections[peer.id] = peer
 
-    cb()
+    return
 
 
 
