@@ -10,7 +10,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
   info: logger 'PeerManager:info'
 
   constructor: (server, mountpath, opts) ->
-    {@keys, @timeout, @concurrent_limit, @ip_limit, tracker_id} = opts
+    {@keys, @timeout, @concurrent_limit, @ip_limit, @tracker_id} = opts
     @info "peer manager starting (mountpath=#{mountpath})..."
 
     # initialize variables
@@ -33,7 +33,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
       # initialize peer connection
       generateId = ->
         "P#{('0000000000' + Math.random().toString(10)).substr(-10)}"
-      peerId = "#{opts.tracker_id}-#{id || generateId()}"
+      peerId = "#{@tracker_id}-#{id || generateId()}"
       peerConn = new PeerConnection key, peerId, token, socket
 
 
