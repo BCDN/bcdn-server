@@ -11,11 +11,11 @@ exports = module.exports = class BCDNTracker
   debug: logger 'BCDNTracker:debug'
   info: logger 'BCDNTracker:info'
 
-  constructor: (express, server, options) ->
+  constructor: (server, mountpath, options) ->
     @info "tracker starting..."
 
     # configure mountpath for WebSocket servers
-    if (mountpath = express.mountpath) instanceof Array
+    if mountpath instanceof Array
       throw new Error "This app can only be mounted on a single path"
     mountpath += '/' unless mountpath.substr(-1) is '/'
 

@@ -11,10 +11,11 @@ exports = module.exports = class TrackerManager extends WebSocketServer
   info: logger 'TrackerManager:info'
 
   constructor: (server, mountpath, opts) ->
-    {trackers, @secret, @timeout, @tracker_id} = opts
-    @trackerURLs = trackers
+    {@trackers, @secret, @timeout, @tracker_id} = opts
 
-    @trackers = {}
+    # initialize variables
+    # connection for trackers: trackerConnections[id] => TrackerConnection
+    @trackerConnections = {}
 
     @info "tracker manager starting (mountpath=#{mountpath}, " +
                                      "id=#{@tracker_id})..."
@@ -39,12 +40,8 @@ exports = module.exports = class TrackerManager extends WebSocketServer
       connection.socket.on 'SIGNAL', (payload) =>
         @emit 'signal', payload
 
-    # initialize variables
-    # connection for trackers: trackerConnections[id] => TrackerConnection
-    @trackerConnections = {}
-
     @on 'listening', =>
-      for trackerURL in @trackerURLs
+      for trackerURL in @trackers
         do (trackerURL) =>
           socket = new WebSocket "#{trackerURL}?id=#{@tracker_id}" +
                                  "&secret=#{@secret}"
@@ -62,8 +59,6 @@ exports = module.exports = class TrackerManager extends WebSocketServer
             @trackerConnections[id] = connection
             @info "tracker connected (id=#{connection.id})..."
 
-            @trackers[id] = connection
-
 
 
   announce: (info) -> @boardcast type: 'ANNOUNCE', payload: info
@@ -77,11 +72,11 @@ exports = module.exports = class TrackerManager extends WebSocketServer
 
 
   boardcast: (msg) ->
-    tracker.send msg for id, tracker of @trackers
+    tracker.send msg for id, tracker of @trackerConnections
 
 
 
   passSignal: (detail) ->
     {to} = detail
     targetTracker = to.split('-')[0]
-    target.signal detail if (target = @trackers[targetTracker])?
+    target.signal detail if (target = @trackerConnections[targetTracker])?

@@ -14,7 +14,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
     @info "peer manager starting (mountpath=#{mountpath})..."
 
     # initialize variables
-    # connection for peers: peerConnections[key][id] => PeerConnection
+    # connection for peers: peerConnections[id] => PeerConnection
     @peerConnections = {}
     # concurrent users for a IP: ips[ip] => count, clean up every 10 minutes
     @ips = {}
