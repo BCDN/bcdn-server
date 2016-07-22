@@ -2,9 +2,17 @@ express = require 'express'
 
 BCDNTracker = require './BCDNTracker'
 
-exports = module.exports = class ExpressBCDNServer
+# BCDN tracker as a module of Express framework.
+class ExpressBCDNServer
+
+  # Create a BCDN tracker as Express module.
+  #
+  # @param [WebServer] server the web server that mounts the tracker.
+  # @param [Object] options see {BCDNTracker#constructor}.
   constructor: (server, options) ->
     app = express()
     app.on 'mount', ->
       app._bcdnTracker = new BCDNTracker server, app.mountpath, options
     return app
+
+exports = module.exports = ExpressBCDNServer

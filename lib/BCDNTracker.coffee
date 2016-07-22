@@ -7,10 +7,18 @@ ResourceTracking = require './ResourceTracking'
 
 logger = require 'debug'
 
-exports = module.exports = class BCDNTracker
+# Entry point of tracker node.
+class BCDNTracker
   debug: logger 'BCDNTracker:debug'
   info: logger 'BCDNTracker:info'
 
+  # Create a BCDN tracker instance.
+  #
+  # @param [WebServer] server the web server that mounts the tracker.
+  # @param [String] mountpath the path that the tracker will be mounted on.
+  # @param [Object] options options for the tracker node.
+  # @option options [Number] timeout timeout (in milliseconds) for connections.
+  # @option options [Number] ip_limit limit for number of connections per IP.
   constructor: (server, mountpath, options) ->
     @info "tracker starting..."
 
@@ -96,3 +104,5 @@ exports = module.exports = class BCDNTracker
         peer.signal payload
 
     @info "tracker started"
+
+exports = module.exports = BCDNTracker

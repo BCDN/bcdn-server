@@ -4,8 +4,15 @@ https = require 'https'
 
 ExpressBCDNServer = require './ExpressBCDNServer'
 
-exports = module.exports = class StandaloneBCDNServer
-  constructor: (options, callbacks) ->
+# A standalone BCDN tracker.
+class StandaloneBCDNServer
+
+  # Create a standalone BCDN tracker instance.
+  #
+  # @param [Object] options see {BCDNTracker#constructor}.
+  # @param [Function] callback function called when server starts listening.
+  # @option callback [WebServer] server the server that tracker is mounted on.
+  constructor: (options, callback) ->
     app = express()
 
     default_options =
@@ -25,7 +32,8 @@ exports = module.exports = class StandaloneBCDNServer
     app.use path, bcdn
 
     server.listen port, host, ->
-      callbacks(server) if callbacks
+      callback(server) if callback
 
     return bcdn
 
+exports = module.exports = StandaloneBCDNServer
