@@ -61,18 +61,15 @@ exports = module.exports = class TrackerManager extends WebSocketServer
 
 
 
-  announce: (info) -> @boardcast type: 'ANNOUNCE', payload: info
+  announce: (info) ->
+    msg = type: 'ANNOUNCE', payload: info
+    tracker.send msg for id, tracker of @trackerConnections
   announceTrack: (peer, hash) ->
     @announce peer: peer, action: 'track', hash: hash
   announceLeave: (peer, hash) ->
     @announce peer: peer, action: 'leave', hash: hash
   announceClose: (peer) ->
     @announce peer: peer, action: 'close'
-
-
-
-  boardcast: (msg) ->
-    tracker.send msg for id, tracker of @trackerConnections
 
 
 
