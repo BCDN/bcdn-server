@@ -2,11 +2,10 @@ querystring = require 'querystring'
 WebSocket = require 'ws'
 
 Serializable = require('bcdn').Serializable
-mix = require('bcdn').mix
 
 logger = require 'debug'
 
-exports = module.exports = class TrackerConnection extends mix Serializable
+exports = module.exports = class TrackerConnection extends Serializable
   verbose: logger 'TrackerConnection:verbose'
   debug: logger 'TrackerConnection:debug'
   info: logger 'TrackerConnection:info'
