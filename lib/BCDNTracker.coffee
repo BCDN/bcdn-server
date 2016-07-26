@@ -5,6 +5,8 @@ ResourceManager = require './ResourceManager'
 PieceManager = require './PieceManager'
 ResourceTracking = require './ResourceTracking'
 
+Util = require('bcdn').Util
+
 logger = require 'debug'
 
 # Entry point of tracker node.
@@ -47,9 +49,7 @@ class BCDNTracker
     # add local tracker to the tracker list
     options.trackers.unshift "ws://#{options.host}:#{options.port}" +
                              "#{mountpath}tracker"
-    generateId = ->
-      "T#{('0000000000' + Math.random().toString(10)).substr(-10)}"
-    options.tracker_id ?= generateId()
+    options.tracker_id ?= "T#{Util.generateId()}"
 
     @debug "timeout: #{options.timeout}"
     @debug "keys: [#{options.keys}]"

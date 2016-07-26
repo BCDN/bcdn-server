@@ -10,10 +10,10 @@ exports = module.exports = class PeerConnection extends mix Peer, Serializable
   info: logger 'PeerConnection:info'
   error: logger 'PeerConnection:error'
 
-  constructor: (key, id, token, @socket) ->
-    super key, id, token, @socket
+  constructor: (properties, @socket) ->
+    super properties
     @ip = @socket.upgradeReq.socket.remoteAddress if @socket?
-    connType = if token? then 'peer' else 'ping'
+    connType = if @token? then 'peer' else 'ping'
 
     switch connType
       when 'peer'

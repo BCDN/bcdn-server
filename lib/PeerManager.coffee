@@ -3,6 +3,8 @@ WebSocketServer = require('ws').Server
 
 PeerConnection = require './PeerConnection'
 
+Util = require('bcdn').Util
+
 logger = require 'debug'
 
 exports = module.exports = class PeerManager extends WebSocketServer
@@ -26,15 +28,15 @@ exports = module.exports = class PeerManager extends WebSocketServer
     super path: mountpath, server: server
     @on 'connection', (socket) =>
       # parse connect parameters
-      {key, id, token} = url.parse(socket.upgradeReq.url, true).query
-      connType = if token? then 'peer' else 'ping'
+      properties = url.parse(socket.upgradeReq.url, true).query
+      connType = if properties.token? then 'peer' else 'ping'
 
+      # generate tracker-related peer ID
+      properties.id ?= "P#{Util.generateId()}"
+      properties.id = "#{@tracker_id}-#{properties.id}"
 
       # initialize peer connection
-      generateId = ->
-        "P#{('0000000000' + Math.random().toString(10)).substr(-10)}"
-      peerId = "#{@tracker_id}-#{id || generateId()}"
-      peerConn = new PeerConnection key, peerId, token, socket
+      peerConn = new PeerConnection properties, socket
 
 
       # check key and limits
@@ -63,7 +65,7 @@ exports = module.exports = class PeerManager extends WebSocketServer
 
           # register peer
           error = @registerPeerConnection peerConn
-          return socket.disconnectWithError error if error?
+          return peerConn.disconnectWithError error if error?
 
           peerConn.accept()
           @emit 'join', peerConn
