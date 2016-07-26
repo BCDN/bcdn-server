@@ -4,7 +4,7 @@ exports = module.exports = class ResourceTracking
   debug: logger 'ResourceTracking:debug'
 
   constructor: ->
-    # tracking[hash] => peerId: peerConnection
+    # tracking[hash] => Set[peerId]
     @tracking = {}
 
   track: (peer, hash) ->
