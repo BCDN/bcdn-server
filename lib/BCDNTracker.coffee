@@ -22,29 +22,29 @@ class BCDNTracker
   constructor: (server, mountpath, options) ->
     @info "tracker starting..."
 
-    # configure mountpath for WebSocket servers
+    # configure mountpath for WebSocket servers.
     if mountpath instanceof Array
       throw new Error "This app can only be mounted on a single path"
     mountpath += '/' unless mountpath.substr(-1) is '/'
 
-    # parse options
+    # apply default options.
     default_options =
       timeout: 5000
       keys: ['bcdn']
       ip_limit: 5000
       concurrent_limit: 5000
       data: './data'
-
-    # handle options
     options = default_options extends options
-    # add mount path
+
+    # update options.
+    #   add mount path.
     options.mountpath = mountpath
-    # make keys an array
+    #   make keys an array.
     options.keys = [options.keys] unless options.keys instanceof Array
-    # make trackers an array
+    #   make trackers an array.
     unless options.trackers instanceof Array
       options.trackers = [options.trackers]
-    # add local tracker to the tracker list
+    #   add local tracker to the tracker list.
     options.trackers.unshift "ws://#{options.host}:#{options.port}" +
                              "#{mountpath}tracker"
     options.tracker_id ?= "T#{Util.generateId()}"
@@ -56,7 +56,7 @@ class BCDNTracker
     @debug "data: #{options.data}"
     @debug "trackers: [#{options.trackers}]"
 
-    # initialize variables
+    # initialize managers.
     @peers = new PeerManager server, "#{mountpath}peer", options
     @trackers = new TrackerManager server, "#{mountpath}tracker", options
     @contents = new ContentsManager options
@@ -64,11 +64,11 @@ class BCDNTracker
     @pieces = new PieceManager options
     @tracking = new ResourceTracking()
 
-    # load content on tracker start
+    # load content on tracker start.
     @contents.reloadContents (key) =>
       @peers.updateContentsFor key, @contents.get key
 
-    # update content on peer join
+    # setup handlers for peer manager events.
     @peers.on 'join', (peerConn) =>
       peerConn.updateContents @contents.get(peerConn.key).serialize()
     @peers.on 'close', (peerConn) =>
@@ -86,7 +86,7 @@ class BCDNTracker
       @pieces.load piece, (buffer) =>
         peerConn.socket.send buffer, binary: true, mask: true
 
-    # handle peer announcement
+    # setup handlers for tracker manager events.
     @trackers.on 'announce', (payload) =>
       {peer, action, hash} = payload
       switch action
