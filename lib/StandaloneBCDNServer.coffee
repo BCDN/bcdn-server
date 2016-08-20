@@ -9,9 +9,9 @@ class StandaloneBCDNServer
 
   # Create a standalone BCDN tracker instance.
   #
-  # @param [Object] options see {BCDNTracker#constructor}.
+  # @param [Object<String, ?>] options see {BCDNTracker#constructor}.
   # @param [Function] callback function called when server starts listening.
-  # @option callback [WebServer] server the server that tracker is mounted on.
+  # @option callback [http.Server or https.Server] server the server that tracker is mounted on.
   constructor: (options, callback) ->
     app = express()
 

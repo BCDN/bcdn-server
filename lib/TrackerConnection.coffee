@@ -25,6 +25,7 @@ exports = module.exports = class TrackerConnection extends Serializable
       # emit information
       @socket.emit content.type, content.payload
 
+    # FIXME: handle TrackerConnection close in TrackerManager
     @socket.on 'close', =>
       @info "tracker left (id=#{@id})"
 

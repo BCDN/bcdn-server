@@ -7,8 +7,8 @@ class ExpressBCDNServer
 
   # Create a BCDN tracker as Express module.
   #
-  # @param [WebServer] server the web server that mounts the tracker.
-  # @param [Object] options see {BCDNTracker#constructor}.
+  # @param [http.Server or https.Server] server the web server that mounts the tracker.
+  # @param [Object<String, ?>] options see {BCDNTracker#constructor}.
   constructor: (server, options) ->
     app = express()
     app.on 'mount', ->

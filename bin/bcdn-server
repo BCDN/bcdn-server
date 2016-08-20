@@ -11,17 +11,17 @@ opts = require 'optimist'
     timeout:
       demand: false
       alias: 't'
-      description: 'timeout (milliseconds)'
+      description: 'connection timeout (milliseconds)'
       default: 5000
     ip_limit:
       demand: false
       alias: 'i'
-      description: 'IP limit'
+      description: 'max concurrent connection per IP'
       default: 5000
     concurrent_limit:
       demand: false
       alias: 'c'
-      description: 'concurrent limit'
+      description: 'concurrent limit for the tracker'
       default: 5000
     keys:
       demand: false
@@ -49,7 +49,7 @@ opts = require 'optimist'
       default: '/'
     tracker_id:
       demand: false
-      description: 'tracker id'
+      description: 'tracker ID'
       default: null
     trackers:
       demand: false
