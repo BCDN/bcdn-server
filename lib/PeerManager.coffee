@@ -46,6 +46,7 @@ class PeerManager extends WebSocketServer
     @on 'connection', (socket) =>
       # parse connect parameters and identify connection type.
       properties = url.parse(socket.upgradeReq.url, true).query
+      # FIXME: [improvement] connType can be reused from PeerConnection.
       connType = if properties.token? then 'peer' else 'ping'
 
       # generate peer ID staring with tracker ID.
@@ -59,7 +60,7 @@ class PeerManager extends WebSocketServer
       error = @checkKeyAndLimits peerConn.key, peerConn.ip
       return peerConn.disconnectWithError error if error?
 
-      # setup handlers for this new connection.
+      # setup packet handlers for this new connection.
       peerConn.on 'CLOSE', =>
         @info "peer has left (key=#{peerConn.key}, id=#{peerConn.id})"
         @removePeerConnection peerConn
