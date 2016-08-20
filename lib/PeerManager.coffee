@@ -22,6 +22,7 @@ class PeerManager extends WebSocketServer
   ip_limit: 0
   # @property [String] tracker ID.
   tracker_id: ''
+
   # @property [Object<String, PeerConnection>] peer connections indexed by peer ID.
   peerConnections: {}
   # @property [Object<String, Number>] number of concurrent connections for each IP.

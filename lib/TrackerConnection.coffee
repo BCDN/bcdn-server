@@ -5,7 +5,7 @@ Serializable = require('bcdn').Serializable
 
 logger = require 'debug'
 
-exports = module.exports = class TrackerConnection extends Serializable
+class TrackerConnection extends Serializable
   verbose: logger 'TrackerConnection:verbose'
   debug: logger 'TrackerConnection:debug'
   info: logger 'TrackerConnection:info'
@@ -41,3 +41,5 @@ exports = module.exports = class TrackerConnection extends Serializable
   # action helpers
   accept: (tracker) -> @send type: 'ACCEPT', payload: tracker
   signal: (detail) ->  @send type: 'SIGNAL', payload: detail
+
+exports = module.exports = TrackerConnection

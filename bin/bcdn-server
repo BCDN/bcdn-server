@@ -53,12 +53,12 @@ opts = require 'optimist'
       default: null
     trackers:
       demand: false
-      description: 'other trackers (do NOT include localhost)'
+      description: 'URL list for other trackers'
       default: []
     secret:
       demand: true
       alias: 's'
-      description: 'secret used for establish tracker communication'
+      description: 'shared secret used for establish tracker communication'
     data:
       demand: false
       alias: 'd'
