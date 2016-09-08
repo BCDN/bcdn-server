@@ -53,12 +53,15 @@ class PeerConnection extends mix Peer, Serializable
           @socket.close()
 
   # Connection helper that sends a message to peer.
+  #
   # @param [Object] msg message object.
   send: (msg) ->
     content = @serialize msg
     @socket.send content
     @verbose "message sent to peer (key=#{@key}, id=#{@id}): #{content}"
+
   # Connection helper that disconnect the connection with a error message.
+  #
   # @param [Object] msg message object.
   disconnectWithError: (msg) ->
     # 1002 - CLOSE_PROTOCOL_ERROR for WebSocket
@@ -67,13 +70,19 @@ class PeerConnection extends mix Peer, Serializable
 
   # Action helper that accepts a peer.
   accept:                     -> @send type: 'JOINED',    payload: id: @id
+
   # Action helper that pushes the contents to peer.
+  #
   # @param [String] contents serialized contents object.
   updateContents: (contents)  -> @send type: 'UPDATE',    payload: contents
+
   # Action helper that sends resource information to peer.
+  #
   # @param [Object] info information that contains resource hash, pieces hashes, and candidates for the resources.
   sendResourceInfo: (info)    -> @send type: 'RESOURCE',  payload: info
+
   # Action helper that passes signal packet to peer.
+  #
   # @param [Object] detail the signal packet.
   signal: (detail)            -> @send type: 'SIGNAL',    payload: detail
 

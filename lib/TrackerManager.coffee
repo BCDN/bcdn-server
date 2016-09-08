@@ -76,18 +76,36 @@ class TrackerManager extends WebSocketServer
             @trackerConnections[id] = connection
             @info "tracker connected (id=#{connection.id})..."
 
+  # Action helper that announcing a information to all trackers.
+  #
+  # @param [Object] info the information to be announced.
   announce: (info) ->
     msg = type: 'ANNOUNCE', payload: info
     tracker.send msg for id, tracker of @trackerConnections
+
+  # Action helper that announcing a track information describing a peer is interested in a resource.
+  #
+  # @param [String] peer peer ID in track information.
+  # @param [String] hash hash of the resource in track information.
   announceTrack: (peer, hash) ->
     @announce peer: peer, action: 'track', hash: hash
+
+  # Action helper that announcing a leave information describing a peer is no longer interested in a resource.
+  #
+  # @param [String] peer peer ID in leave information.
+  # @param [String] hash hash of the resource in leave information.
   announceLeave: (peer, hash) ->
     @announce peer: peer, action: 'leave', hash: hash
+
+  # Action helper that announcing a close information describing a peer is disconnected.
+  #
+  # @param [String] peer peer ID in close information.
   announceClose: (peer) ->
     @announce peer: peer, action: 'close'
 
-
-
+  # Action helper that passes a signal to another peer with the help of trackers.
+  #
+  # @param [Object] detail object containing signal details.
   passSignal: (detail) ->
     {to} = detail
     targetTracker = to.split('-')[0]
