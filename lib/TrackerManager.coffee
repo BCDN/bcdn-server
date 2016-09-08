@@ -8,9 +8,6 @@ logger = require 'debug'
 
 # Manager for tracker connections.
 class TrackerManager extends WebSocketServer
-  debug: logger 'TrackerManager:debug'
-  info: logger 'TrackerManager:info'
-
   # @property [String] shared secret used for establish tracker communication.
   secret: ''
   # @property [Number] connection timeout (milliseconds).
@@ -23,12 +20,18 @@ class TrackerManager extends WebSocketServer
   # @property [Object<String, TrackerConnection>] tracker connections indexed by tracker ID.
   trackerConnections: {}
 
+  # Create a tracker manager instance.
+  #
+  # @param [http.Server or https.Server] server the web server that this tracker manager will be mounted on.
+  # @param [String] mountpath the mount path for this tracker manager.
+  # @param [Object<String, ?>] options options from {BCDNTracker} for initialize this tracker manager.
   constructor: (server, mountpath, options) ->
     {@secret, @timeout, @tracker_id, @trackers} = options
     @info "tracker manager starting (mountpath=#{mountpath}, id=#{@tracker_id})..."
 
     # setup WebSocket server for tracker manager.
     super path: mountpath, server: server
+
     @on 'connection', (socket) =>
       # parse connect parameters and verify the shared secret, close connect if secret is invalid.
       {id, secret} = url.parse(socket.upgradeReq.url, true).query
@@ -50,6 +53,7 @@ class TrackerManager extends WebSocketServer
         @emit 'announce', payload
       connection.socket.on 'SIGNAL', (payload) =>
         @emit 'signal', payload
+
     # once the WebSocket server starts listening, try to connects other trackers.
     @on 'listening', =>
       for trackerURL in @trackers
@@ -88,5 +92,8 @@ class TrackerManager extends WebSocketServer
     {to} = detail
     targetTracker = to.split('-')[0]
     target.signal detail if (target = @trackerConnections[targetTracker])?
+
+  debug: logger 'TrackerManager:debug'
+  info: logger 'TrackerManager:info'
 
 exports = module.exports = TrackerManager

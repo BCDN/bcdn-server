@@ -64,10 +64,6 @@ class BCDNTracker
     @pieces = new PieceManager options
     @tracking = new ResourceTracking()
 
-    # load content on tracker start.
-    @contents.reloadContents (key) =>
-      @peers.updateContentsFor key, @contents.get key
-
     # setup handlers for peer manager events.
     @peers.on 'join', (peerConn) =>
       peerConn.updateContents @contents.get(peerConn.key).serialize()
@@ -100,6 +96,10 @@ class BCDNTracker
       {to} = payload
       if (peer = @peers.get to)?
         peer.signal payload
+
+    # load content on tracker start.
+    @contents.reloadContents (key) =>
+      @peers.updateContentsFor key, @contents.get key
 
     @info "tracker started"
 

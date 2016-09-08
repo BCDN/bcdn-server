@@ -9,9 +9,6 @@ logger = require 'debug'
 
 # Manager for peer connections.
 class PeerManager extends WebSocketServer
-  debug: logger 'PeerManager:debug'
-  info: logger 'PeerManager:info'
-
   # @property [Array<String>] valid connection key.
   keys: []
   # @property [Number] connection timeout (milliseconds).
@@ -44,6 +41,7 @@ class PeerManager extends WebSocketServer
 
     # setup WebSocket server for peer manager.
     super path: mountpath, server: server
+
     @on 'connection', (socket) =>
       # parse connect parameters and identify connection type.
       properties = url.parse(socket.upgradeReq.url, true).query
@@ -172,5 +170,8 @@ class PeerManager extends WebSocketServer
   # @param [String] peer ID.
   # @return [PeerConnection] peer connection.
   get: (id) -> @peerConnections[id]
+
+  debug: logger 'PeerManager:debug'
+  info: logger 'PeerManager:info'
 
 exports = module.exports = PeerManager
