@@ -43,16 +43,13 @@ class TrackerManager extends WebSocketServer
       # exclude self since this action is handled with ACCEPT packet.
       unless id is @tracker_id
         @trackerConnections[id] = connection
-        @info "tracker connected (id=#{id})..."
+        @info "tracker connected from id=#{id}..."
 
       # accept the tracker, give self ID to it.
       connection.accept id: @tracker_id
 
       # setup packet handlers for this new connection.
-      connection.socket.on 'ANNOUNCE', (payload) =>
-        @emit 'announce', payload
-      connection.socket.on 'SIGNAL', (payload) =>
-        @emit 'signal', payload
+      @setupTrackerConnectionHandlers connection
 
     # once the WebSocket server starts listening, try to connects other trackers.
     @on 'listening', =>
@@ -64,7 +61,7 @@ class TrackerManager extends WebSocketServer
 
           # set timer for connection timeout.
           wait = setTimeout =>
-            @debug "timeout to accept the connection"
+            @debug "timeout to connect to the remote tracker with id=#{@tracker_id}"
             socket.close()
           , @timeout
 
@@ -74,7 +71,10 @@ class TrackerManager extends WebSocketServer
             clearTimeout wait
             connection.id = id
             @trackerConnections[id] = connection
-            @info "tracker connected (id=#{connection.id})..."
+            @info "connected to tracker id=#{connection.id}..."
+
+            # setup packet handlers for this new connection.
+            @setupTrackerConnectionHandlers connection
 
   # Action helper that announcing a information to all trackers.
   #
@@ -110,6 +110,15 @@ class TrackerManager extends WebSocketServer
     {to} = detail
     targetTracker = to.split('-')[0]
     target.signal detail if (target = @trackerConnections[targetTracker])?
+
+  # Setup packet handlers for this new connection.
+  #
+  # @param [TrackerConnection] connection new tracker connection.
+  setupTrackerConnectionHandlers: (connection) =>
+    connection.socket.on 'ANNOUNCE', (payload) =>
+      @emit 'announce', payload
+    connection.socket.on 'SIGNAL', (payload) =>
+      @emit 'signal', payload
 
   debug: logger 'TrackerManager:debug'
   info: logger 'TrackerManager:info'
