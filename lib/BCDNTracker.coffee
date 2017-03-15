@@ -11,8 +11,18 @@ logger = require 'debug'
 
 # Entry point of tracker node.
 class BCDNTracker
-  debug: logger 'BCDNTracker:debug'
-  info: logger 'BCDNTracker:info'
+  # @property [PeerManager] the manager for peer connection management.
+  peers: null
+  # @property [TrackerManager] the manager for tracker connection management.
+  trackers: null
+  # @property [ContentsManager] the manager to manage contents for different namespaces (or keys).
+  contents: null
+  # @property [ResourceManager] the manager for resource management.
+  resources: null
+  # @property [PieceManager] the manager for piece management.
+  pieces: null
+  # @property [ResourceTracking] the resource tracker for peer and resource tracking.
+  tracking: null
 
   # Create a BCDN tracker instance.
   #
@@ -20,7 +30,7 @@ class BCDNTracker
   # @param [String] mountpath the path that the tracker will be mounted on.
   # @param [Object<String, ?>] options options for the tracker node instance.
   constructor: (server, mountpath, options) ->
-    @info "tracker starting..."
+    @info "-- tracker starting..."
 
     # configure mountpath for WebSocket servers.
     if mountpath instanceof Array
@@ -49,12 +59,12 @@ class BCDNTracker
                              "#{mountpath}tracker"
     options.tracker_id ?= "T#{Util.generateId()}"
 
-    @debug "timeout: #{options.timeout}"
-    @debug "keys: [#{options.keys}]"
-    @debug "ip_limit: #{options.ip_limit}"
-    @debug "concurrent_limit: #{options.concurrent_limit}"
-    @debug "data: #{options.data}"
-    @debug "trackers: [#{options.trackers}]"
+    @debug "-- timeout: #{options.timeout}"
+    @debug "-- keys: [#{options.keys}]"
+    @debug "-- ip_limit: #{options.ip_limit}"
+    @debug "-- concurrent_limit: #{options.concurrent_limit}"
+    @debug "-- data: #{options.data}"
+    @debug "-- trackers: [#{options.trackers}]"
 
     # initialize managers.
     @peers = new PeerManager server, "#{mountpath}peer", options
@@ -80,6 +90,7 @@ class BCDNTracker
       @trackers.passSignal detail
     @peers.on 'fetch', (peerConn, piece) =>
       @pieces.load piece, (buffer) =>
+        @info ">P [msg=PIECE]: send PIECE packet to peer[id=#{peerConn.id}] "
         peerConn.socket.send buffer, binary: true, mask: true
 
     # setup handlers for tracker manager events.
@@ -101,6 +112,9 @@ class BCDNTracker
     @contents.reloadContents (key) =>
       @peers.updateContentsFor key, @contents.get key
 
-    @info "tracker started"
+    @info "-- tracker started"
+
+  debug: logger 'BCDNTracker:debug'
+  info: logger 'BCDNTracker:info'
 
 exports = module.exports = BCDNTracker

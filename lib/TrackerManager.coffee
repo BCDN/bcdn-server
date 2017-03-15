@@ -7,18 +7,20 @@ TrackerConnection = require './TrackerConnection'
 logger = require 'debug'
 
 # Manager for tracker connections.
+#
+# @extend WebSocketServer
 class TrackerManager extends WebSocketServer
   # @property [String] shared secret used for establish tracker communication.
-  secret: ''
+  secret: null
   # @property [Number] connection timeout (milliseconds).
   timeout: 0
   # @property [String] tracker ID.
-  tracker_id: ''
+  tracker_id: null
   # @property [Array<String>] URL list for other trackers.
-  trackers: []
+  trackers: null
 
   # @property [Object<String, TrackerConnection>] tracker connections indexed by tracker ID.
-  trackerConnections: {}
+  trackerConnections: null
 
   # Create a tracker manager instance.
   #
@@ -27,7 +29,8 @@ class TrackerManager extends WebSocketServer
   # @param [Object<String, ?>] options options from {BCDNTracker} for initialize this tracker manager.
   constructor: (server, mountpath, options) ->
     {@secret, @timeout, @tracker_id, @trackers} = options
-    @info "tracker manager starting (mountpath=#{mountpath}, id=#{@tracker_id})..."
+    @trackerConnections = {}
+    @info "-- tracker manager starting (mountpath=#{mountpath}, id=#{@tracker_id})..."
 
     # setup WebSocket server for tracker manager.
     super path: mountpath, server: server
@@ -41,12 +44,11 @@ class TrackerManager extends WebSocketServer
       connection = new TrackerConnection socket, id
 
       # exclude self since this action is handled with ACCEPT packet.
-      unless id is @tracker_id
-        @trackerConnections[id] = connection
-        @info "tracker connected from id=#{id}..."
+      @trackerConnections[id] = connection unless id is @tracker_id
 
       # accept the tracker, give self ID to it.
       connection.accept id: @tracker_id
+      @info "*T [event=CONNECT] connected from tracker[id=#{connection.id}]"
 
       # setup packet handlers for this new connection.
       @setupTrackerConnectionHandlers connection
@@ -61,7 +63,7 @@ class TrackerManager extends WebSocketServer
 
           # set timer for connection timeout.
           wait = setTimeout =>
-            @debug "timeout to connect to the remote tracker with id=#{@tracker_id}"
+            @info "WW timeout to connect to the remote tracker with id=#{@tracker_id}"
             socket.close()
           , @timeout
 
@@ -71,7 +73,7 @@ class TrackerManager extends WebSocketServer
             clearTimeout wait
             connection.id = id
             @trackerConnections[id] = connection
-            @info "connected to tracker id=#{connection.id}..."
+            @info "*T [event=CONNECT] connected to tracker[id=#{connection.id}]"
 
             # setup packet handlers for this new connection.
             @setupTrackerConnectionHandlers connection
@@ -80,6 +82,8 @@ class TrackerManager extends WebSocketServer
   #
   # @param [Object] info the information to be announced.
   announce: (info) ->
+    @info ">T [msg=ANNOUNCE]: send ANNOUNCE packet to all trackers: " +
+          "#{JSON.stringify info}"
     msg = type: 'ANNOUNCE', payload: info
     tracker.send msg for id, tracker of @trackerConnections
 
@@ -116,8 +120,12 @@ class TrackerManager extends WebSocketServer
   # @param [TrackerConnection] connection new tracker connection.
   setupTrackerConnectionHandlers: (connection) =>
     connection.socket.on 'ANNOUNCE', (payload) =>
+      @info "<T [event=ANNOUNCE]: got ANNOUNCE packet " +
+            "from tracker[id=#{@id}]: #{payload}"
       @emit 'announce', payload
     connection.socket.on 'SIGNAL', (payload) =>
+      @info "<T [event=SIGNAL]: got SIGNAL packet from tracker[id=#{@id}] " +
+            "for peer[id=#{payload.to}] from peer[id=#{payload.from}]"
       @emit 'signal', payload
 
   debug: logger 'TrackerManager:debug'

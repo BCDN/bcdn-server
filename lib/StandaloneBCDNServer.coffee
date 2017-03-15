@@ -6,7 +6,6 @@ ExpressBCDNServer = require './ExpressBCDNServer'
 
 # A standalone BCDN tracker.
 class StandaloneBCDNServer
-
   # Create a standalone BCDN tracker instance.
   #
   # @param [Object<String, ?>] options see {BCDNTracker#constructor}.

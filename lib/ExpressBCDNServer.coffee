@@ -4,7 +4,6 @@ BCDNTracker = require './BCDNTracker'
 
 # BCDN tracker as a module of Express framework.
 class ExpressBCDNServer
-
   # Create a BCDN tracker as Express module.
   #
   # @param [http.Server or https.Server] server the web server that mounts the tracker.

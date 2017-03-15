@@ -5,12 +5,10 @@ mix = require('bcdn').mix
 logger = require 'debug'
 
 # Wrapper for WebSocket connection from peer.
+#
+# @extend Peer
+# @extend Serializable
 class PeerConnection extends mix Peer, Serializable
-  verbose: logger 'PeerConnection:verbose'
-  debug: logger 'PeerConnection:debug'
-  info: logger 'PeerConnection:info'
-  error: logger 'PeerConnection:error'
-
   # @property [WebSocket] socket instance of WebSocket connection.
   socket: null
   # @property [String] peer IP.
@@ -34,12 +32,12 @@ class PeerConnection extends mix Peer, Serializable
           try
             content = @deserialize data
           catch e
-            return @debug "error to deserialize: #{e}, (data=#{data})"
+            return @error "EE error to deserialize: #{e}, (data=#{data})"
 
           # sanitize malformed messages.
           return unless content.type in ['DOWNLOAD', 'SIGNAL', 'FETCH']
 
-          @verbose "peer has sent a message (id=#{@id}, data=#{data})"
+          @debug "<P peer has sent a message (id=#{@id}, data=#{data})"
 
           # emit information.
           @emit content.type, content.payload
@@ -49,7 +47,7 @@ class PeerConnection extends mix Peer, Serializable
       when 'ping'
         # close after ping received.
         @socket.on 'ping', =>
-          @debug "got ping (key=#{@key})"
+          @info "!P got ping (key=#{@key})"
           @socket.close()
 
   # Connection helper that sends a message to peer.
@@ -58,7 +56,7 @@ class PeerConnection extends mix Peer, Serializable
   send: (msg) ->
     content = @serialize msg
     @socket.send content
-    @verbose "message sent to peer (key=#{@key}, id=#{@id}): #{content}"
+    @debug ">P message sent to peer (key=#{@key}, id=#{@id}): #{content}"
 
   # Connection helper that disconnect the connection with a error message.
   #
@@ -69,21 +67,35 @@ class PeerConnection extends mix Peer, Serializable
     @socket.close 1002, content
 
   # Action helper that accepts a peer.
-  accept:                     -> @send type: 'JOINED',    payload: id: @id
+  accept: ->
+    @info ">P [msg=JOINED]: send JOINED packet to peer[id=#{@id}]"
+    @send type: 'JOINED', payload: id: @id
 
   # Action helper that pushes the contents to peer.
   #
   # @param [String] contents serialized contents object.
-  updateContents: (contents)  -> @send type: 'UPDATE',    payload: contents
+  updateContents: (contents) ->
+    @info ">P [msg=UPDATE]: send UPDATE packet to peer[id=#{@id}]"
+    @send type: 'UPDATE', payload: contents
 
   # Action helper that sends resource information to peer.
   #
   # @param [Object] info information that contains resource hash, pieces hashes, and candidates for the resources.
-  sendResourceInfo: (info)    -> @send type: 'RESOURCE',  payload: info
+  sendResourceInfo: (info) ->
+    @info ">P [msg=RESOURCE]: send RESOURCE packet to peer[id=#{@id}] " +
+          "for resource[hash=#{info.hash}]"
+    @send type: 'RESOURCE', payload: info
 
   # Action helper that passes signal packet to peer.
   #
   # @param [Object] detail the signal packet.
-  signal: (detail)            -> @send type: 'SIGNAL',    payload: detail
+  signal: (detail) ->
+    @info ">P [msg=SIGNAL]: send SIGNAL packet to peer[id=#{@id}] " +
+          "from peer[id=#{detail.from}]"
+    @send type: 'SIGNAL', payload: detail
+
+  debug: logger 'PeerConnection:debug'
+  info: logger 'PeerConnection:info'
+  error: logger 'PeerConnection:error'
 
 exports = module.exports = PeerConnection

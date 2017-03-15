@@ -8,9 +8,11 @@ Util = require('bcdn').Util
 logger = require 'debug'
 
 # Manager for peer connections.
+#
+# @extend WebSocketServer
 class PeerManager extends WebSocketServer
   # @property [Array<String>] valid connection key.
-  keys: []
+  keys: null
   # @property [Number] connection timeout (milliseconds).
   timeout: 0
   # @property [Number] concurrent limit for the tracker.
@@ -18,12 +20,11 @@ class PeerManager extends WebSocketServer
   # @property [Number] max concurrent connection per IP.
   ip_limit: 0
   # @property [String] tracker ID.
-  tracker_id: ''
-
+  tracker_id: null
   # @property [Object<String, PeerConnection>] peer connections indexed by peer ID.
-  peerConnections: {}
+  peerConnections: null
   # @property [Object<String, Number>] number of concurrent connections for each IP.
-  ips: {}
+  ips: null
 
   # Create a peer manager instance.
   #
@@ -32,7 +33,9 @@ class PeerManager extends WebSocketServer
   # @param [Object<String, ?>] options options from {BCDNTracker} for initialize this peer manager.
   constructor: (server, mountpath, options) ->
     {@keys, @timeout, @concurrent_limit, @ip_limit, @tracker_id} = options
-    @info "peer manager starting (mountpath=#{mountpath})..."
+    @peerConnections = {}
+    @ips = {}
+    @info "-- peer manager starting (mountpath=#{mountpath})..."
 
     # setup clean up timer.
     setInterval =>
@@ -60,39 +63,50 @@ class PeerManager extends WebSocketServer
       return peerConn.disconnectWithError error if error?
 
       # setup packet handlers for this new connection.
-      peerConn.on 'CLOSE', =>
-        @info "peer has left (key=#{peerConn.key}, id=#{peerConn.id})"
-        @removePeerConnection peerConn
-        @emit 'close', peerConn
-      peerConn.on 'DOWNLOAD', (payload) =>
-        {hash} = payload
-        @emit 'download', peerConn, hash
-      peerConn.on 'SIGNAL', (payload) =>
-        payload.from = peerConn.id
-        @emit 'signal', payload
-      peerConn.on 'FETCH', (piece) =>
-        @emit 'fetch', peerConn, piece
+      do (peerConn) =>
+        @info "*P [event=CONNECT]: connected from peer[id=#{peerConn.id}]"
 
-      # accept different types of connections.
-      switch connType
-        when 'peer'
-          @info "peer joining (key=#{peerConn.key}, id=#{peerConn.id})..."
+        peerConn.on 'CLOSE', =>
+          @info "*P [event=CLOSE]: connection closed peer[id=#{peerConn.id}]"
+          @removePeerConnection peerConn
+          @emit 'close', peerConn
+        peerConn.on 'DOWNLOAD', (hash) =>
+          @info "<P [event=DOWNLOAD]: got DOWNLOAD packet " +
+                                   "from peer[id=#{peerConn.id}] " +
+                                   "for resource[id=#{hash}]"
+          @emit 'download', peerConn, hash
+        peerConn.on 'SIGNAL', (payload) =>
+          @info "<P [event=SIGNAL]: got SIGNAL packet " +
+                                   "from peer[id=#{peerConn.id}] " +
+                                   "to peer[id=#{payload.to}]"
+          payload.from = peerConn.id
+          @emit 'signal', payload
+        peerConn.on 'FETCH', (piece) =>
+          @info "<P [event=FETCH]: got FETCH packet " +
+                                  "from peer[id=#{peerConn.id}] " +
+                                  "for piece[hash=#{piece}]"
+          @emit 'fetch', peerConn, piece
 
-          # register the peer connection and disconnect on error.
-          error = @registerPeerConnection peerConn
-          return peerConn.disconnectWithError error if error?
+        # accept different types of connections.
+        switch connType
+          when 'peer'
+            @info "*P peer joining (key=#{peerConn.key}, id=#{peerConn.id})..."
 
-          # accept the connection.
-          peerConn.accept()
-          @emit 'join', peerConn
+            # register the peer connection and disconnect on error.
+            error = @registerPeerConnection peerConn
+            return peerConn.disconnectWithError error if error?
 
-        when 'ping'
-          @info "new ping connection (key=#{peerConn.key})"
+            # accept the connection.
+            peerConn.accept()
+            @emit 'join', peerConn
 
-          # Set a timer always close the ping connection in certain period of time.
-          setTimeout =>
-            peerConn.disconnectWithError 'timeout for joining the network'
-          , @timeout
+          when 'ping'
+            @info "*P new ping connection (key=#{peerConn.key})"
+
+            # Set a timer always close the ping connection in certain period of time.
+            setTimeout =>
+              peerConn.disconnectWithError 'timeout for joining the network'
+            , @timeout
 
   # Check the connection key is valid and check the connection against the limit.
   #
@@ -136,10 +150,10 @@ class PeerManager extends WebSocketServer
       _action = "register"
       # increment the number of concurrent connection for this IP.
       @ips[peer.ip]++
-      @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip]}"
+      @debug "-- number of connection for (ip=#{peer.ip}): #{@ips[peer.ip]}"
 
     # register or update the peer connection table.
-    @debug "#{_action} peer (key=#{peer.key}, id=#{peer.id})"
+    @debug "-- #{_action} peer (key=#{peer.key}, id=#{peer.id})"
     @peerConnections[peer.id] = peer
 
     # and return empty error message to indicate the successful registration.
@@ -152,9 +166,9 @@ class PeerManager extends WebSocketServer
     # first make sure the peer has already been registered.
     if peer is @peerConnections[peer.id]
       # then remove the connection and decrement the number of concurrent connection for this IP.
-      @debug "remove peer (key=#{peer.key}, id=#{peer.id})"
+      @debug "-- remove peer (key=#{peer.key}, id=#{peer.id})"
       delete @peerConnections[peer.id]
-      @debug "number of connection for (ip=#{peer.ip}): #{@ips[peer.ip] - 1}"
+      @debug "-- number of connection for (ip=#{peer.ip}): #{@ips[peer.ip]-1}"
       @ips[peer.ip]--
 
   # Push new contents for peer connections with certain connection key.

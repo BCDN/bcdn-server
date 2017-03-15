@@ -5,4 +5,4 @@ RUN apk --no-cache add bash findutils coreutils
 
 COPY bin/generate /
 
-ENTRYPOINT ["/generate"]
+CMD ["/generate"]
