@@ -1,0 +1,8 @@
+FROM alpine
+MAINTAINER Wenxuan Zhao <viz@linux.com>
+
+RUN apk --no-cache add bash findutils coreutils
+
+COPY bin/generate /
+
+CMD ["/generate"]

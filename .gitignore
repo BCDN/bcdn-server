@@ -15,5 +15,10 @@
 .Trashes
 
 # NodeJS
-/node_modules/
+/node_modules
 npm-debug.log
+
+# Project
+/files
+/data
+/doc

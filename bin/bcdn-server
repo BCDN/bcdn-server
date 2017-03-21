@@ -4,36 +4,41 @@ path = require 'path'
 pkg = require '../package.json'
 fs = require 'fs'
 version = pkg.version
-BCDNServer = require('../lib').BCDNServer
+StandaloneBCDNServer = require('..').StandaloneBCDNServer
 opts = require 'optimist'
   .usage 'Usage: $0'
   .options
     timeout:
       demand: false
       alias: 't'
-      description: 'timeout (milliseconds)'
+      description: 'connection timeout (milliseconds)'
       default: 5000
     ip_limit:
       demand: false
       alias: 'i'
-      description: 'IP limit'
+      description: 'max concurrent connection per IP'
       default: 5000
     concurrent_limit:
       demand: false
       alias: 'c'
-      description: 'concurrent limit'
+      description: 'concurrent limit for the tracker'
       default: 5000
-    key:
+    keys:
       demand: false
       alias: 'k'
       description: 'connection key'
-      default: 'bcdn'
+      default: ['bcdn']
     sslkey:
       demand: false
       description: 'path to SSL key'
     sslcert:
       demand: false
       description: 'path to SSL certificate'
+    host:
+      demand: false
+      alias: 'h'
+      description: 'host'
+      default: '127.0.0.1'
     port:
       demand: true
       alias: 'p'
@@ -42,10 +47,28 @@ opts = require 'optimist'
       demand: false
       description: 'custom path'
       default: '/'
+    tracker_id:
+      demand: false
+      description: 'tracker ID'
+      default: null
+    trackers:
+      demand: false
+      description: 'URL list for other trackers'
+      default: []
+    secret:
+      demand: true
+      alias: 's'
+      description: 'shared secret used for establish tracker communication'
+    data:
+      demand: false
+      alias: 'd'
+      description: 'data path'
+      default: './data'
   .argv
 
-process.on 'uncaughtException', (err) ->
-  console.error "Error: #{err}"
+unless process.env.DEBUG
+  process.on 'uncaughtException', (err) ->
+    console.error "Error: #{err}"
 
 if opts.sslkey? or opts.sslcert?
   unless opts.sslkey? and opts.sslcert?
@@ -61,7 +84,7 @@ if opts.sslkey? or opts.sslcert?
   delete opts.sslcert
 
 userPath = opts.path || '/'
-server = new BCDNServer opts, (server) ->
+server = new StandaloneBCDNServer opts, (server) ->
   {address, port} = server.address()
 
   console.log "Started BCDNServer on #{address}, port: #{port}, " +

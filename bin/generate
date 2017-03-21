@@ -1,0 +1,119 @@
+#!/bin/bash
+
+set -e
+
+export DIR_ROOT="$(pwd)"
+
+# handle keys
+if [ -z "$1" ]; then
+    DIR_FILES="${DIR_ROOT}/files"
+    [ -d "$DIR_FILES" ] \
+        || { echo "Error: path ${DIR_FILES} is not a directory!" >/dev/stderr
+             exit 1; }
+
+    echo "Generating for all keys..."
+    ls "$DIR_FILES" | xargs -d'\n' -n1 "$0"
+
+    exit 0
+else
+    KEY="$1"
+    DIR_FILES="${DIR_ROOT}/files/$KEY"
+    [ -d "$DIR_FILES" ] \
+        || { echo "Error: path ${DIR_FILES} is not a directory!" >/dev/stderr
+             exit 1; }
+fi
+
+# setup
+TIMESTAMP="$(date +%s)"
+DIR_DATA="${DIR_ROOT}/data"
+DIR_CONTENTS="${DIR_DATA}/contents/$KEY"
+DIR_CONTENTS_TMP="${DIR_CONTENTS}-tmp_$TIMESTAMP"
+HASH_TOOL=sha256sum
+CHUNK_SIZE=256K
+
+# cleanup on error or exit
+cleanup() {
+    rm -rf "$DIR_CONTENTS_TMP"
+}
+trap cleanup INT TERM ERR EXIT
+
+# helper function for dependency check
+check() {
+    which "$1" 2>&1 >/dev/null \
+        || { echo "Error: program \"$1\" not found!" >/dev/stderr; exit 1; }
+}
+
+# check dependencies
+check "$HASH_TOOL"
+check split
+check find
+
+# prepare directories
+mkdir -p "$DIR_CONTENTS_TMP"
+
+# generate data directory
+echo
+echo
+echo "Generating for key=${KEY}..."
+cd "$DIR_FILES"
+N_FILES="$(find -type f | wc -l)"
+find -type f | while read FILE; do
+    echo # spacer
+    FILE="$(echo "$FILE" | cut -c 3-)"
+    I_FILES=$((I_FILES+1))
+
+    # hash and build entry
+    echo "[${I_FILES}/${N_FILES}] ${FILE}: hashing..."
+    RES_HASH="$("$HASH_TOOL" "$FILE" | cut -sd' ' -f-1)"
+    ENTRY="$(stat -c'%n %s' "$FILE") $RES_HASH"
+
+    # add to contents
+    echo "[${I_FILES}/${N_FILES}] ${FILE}: add to contents"
+    echo "/$ENTRY" >> "${DIR_CONTENTS_TMP}/contents"
+
+    # check duplicate
+    DIR_INDEX="$DIR_DATA/indexes/$(echo "$RES_HASH" | cut -c-2)"
+    mkdir -p "$DIR_INDEX"
+    FILE_INDEX="${DIR_INDEX}/${RES_HASH}"
+    [ -f "${FILE_INDEX}" ] && {
+        echo "[${I_FILES}/${N_FILES}] ${FILE}: duplicate file found, skip."
+        continue; }
+
+    # split file
+    DIR_SPLIT_TMP="${DIR_DATA}/split-${RES_HASH}"
+    mkdir -p "$DIR_SPLIT_TMP"
+    cd "$DIR_SPLIT_TMP"
+    echo "[${I_FILES}/${N_FILES}] ${FILE}: splitting..."
+    split -b "$CHUNK_SIZE" "${DIR_FILES}/${FILE}"
+
+    # process split files
+    N_PIECES="$(ls | wc -l)"
+    ls | sort | while read PIECE; do
+        I_PIECES=$((I_PIECES+1))
+
+        PC_HASH="$("$HASH_TOOL" "$PIECE" | cut -sd' ' -f-1)"
+        echo "[${I_FILES}/${N_FILES}-${I_PIECES}/${N_PIECES}]" \
+             "processing ${PC_HASH}..."
+        echo "$PC_HASH" >> "${FILE_INDEX}"
+
+        DIR_PIECE="$DIR_DATA/pieces/$(echo "$PC_HASH" | cut -c-2)"
+        mkdir -p "$DIR_PIECE"
+
+        mv "$PIECE" "${DIR_PIECE}/${PC_HASH}"
+    done
+
+    # remove temporary directory for splitting files
+    rm -rf "$DIR_SPLIT_TMP"
+
+    # be prepared for the next file
+    cd "$DIR_FILES"
+done
+
+# update data directory
+rm -rf "$DIR_CONTENTS"
+mv "$DIR_CONTENTS_TMP" "$DIR_CONTENTS"
+echo "$TIMESTAMP" > "${DIR_CONTENTS}/timestamp"
+
+# TODO: notify server for the update
+
+echo 'Done!'
