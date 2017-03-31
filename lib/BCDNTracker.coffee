@@ -91,7 +91,10 @@ class BCDNTracker
     @peers.on 'fetch', (peerConn, piece) =>
       @pieces.load piece, (buffer) =>
         @info ">P [msg=PIECE]: send PIECE packet to peer[id=#{peerConn.id}] "
-        peerConn.socket.send buffer, binary: true, mask: true
+        try
+          peerConn.socket.send buffer, binary: true, mask: true
+        catch e
+          @error "EE failed to send piece to peer[id=#{peerConn.id}]: #{e}"
 
     # setup handlers for tracker manager events.
     @trackers.on 'announce', (payload) =>
@@ -116,5 +119,6 @@ class BCDNTracker
 
   debug: logger 'BCDNTracker:debug'
   info: logger 'BCDNTracker:info'
+  error: logger 'BCDNTracker:error'
 
 exports = module.exports = BCDNTracker
